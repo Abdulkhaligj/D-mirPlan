@@ -1,0 +1,6 @@
+{
+  "name": "DəmirPlan Pro",
+  "description": "Fərdi məşq proqramları, qidalanma planları, Aİ söhbəti və yağ faiz analizi ilə təchiz olunmuş ağıllı fitness məşqçi platforması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and fitness logs",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "updatedAt": { "type": "integer" },
+        "lastActive": { "type": "integer" },
+        "weight": { "type": "number" },
+        "programDays": { "type": "integer" },
+        "premium": { "type": "boolean" },
+        "premiumUntil": { "type": "integer" },
+        "premiumPlan": { "type": "string" },
+        "data": { "type": "object" }
+      }
+    },
+    "PublicConfig": {
+      "title": "PublicConfig",
+      "description": "Global application public settings",
+      "type": "object",
+      "properties": {
+        "paymentLink": { "type": "string" },
+        "price": { "type": "string" },
+        "whatsapp": { "type": "string" }
+      }
+    },
+    "SecretConfig": {
+      "title": "SecretConfig",
+      "description": "Global application private settings",
+      "type": "object",
+      "properties": {
+        "anthropicKey": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and exercise/nutrition logs"
+    },
+    "config/public": {
+      "schema": "PublicConfig",
+      "description": "Public layout and pricing config"
+    },
+    "config/secret": {
+      "schema": "SecretConfig",
+      "description": "Secret configuration keys"
+    }
+  }
+}
