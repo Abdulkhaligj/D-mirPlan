@@ -219,7 +219,7 @@ export default function BodyFat({
               placeholder="Məs. 38"
               value={neck}
               onChange={(e) => setNeck(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -231,7 +231,7 @@ export default function BodyFat({
               placeholder="Məs. 85"
               value={waist}
               onChange={(e) => setWaist(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -244,7 +244,7 @@ export default function BodyFat({
                 placeholder="Məs. 96"
                 value={hip}
                 onChange={(e) => setHip(e.target.value)}
-                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
               />
             </div>
           )}
@@ -283,8 +283,8 @@ export default function BodyFat({
             <Camera className="w-5 h-5 text-amber-500" />
             <span>📷 Aİ ilə Fizika və Yağ Analizi</span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-amber-500 py-0.5 px-2 bg-amber-500/10 rounded-full">
-            Premium
+          <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 py-0.5 px-2 bg-emerald-500/10 rounded-full">
+            Ödənişsiz / Aktiv ✨
           </span>
         </div>
 

@@ -3,3 +3,27 @@
 @theme {
   --font-sans: "Barlow", sans-serif;
 }
+
+@layer utilities {
+  /* Prevent default gray tap highlight on iOS Safari */
+  *, *:before, *:after {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Support smooth momentum-scrolling on iOS devices */
+  .ios-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Base resets for Safari inputs */
+input, select, textarea {
+  -webkit-appearance: none;
+  appearance: none;
+  font-size: 16px; /* Fallback absolute minimum to prevent zoom on iOS Safari */
+}
+
+/* Safe area padding for bottom tab navigation on notched iPhones */
+.pb-safe {
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}

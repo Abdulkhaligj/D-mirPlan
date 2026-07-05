@@ -196,6 +196,157 @@ app.post("/api/activate-premium", async (req, res) => {
   }
 });
 
+// 6. AI Exercise Guide Generator (Gemini AI)
+app.post("/api/exercise-guide", async (req, res) => {
+  const { exerciseName } = req.body;
+  if (!exerciseName) {
+    return res.status(400).json({ error: "Hərəkət adı daxil edilməyib." });
+  }
+
+  // Generate a high-quality fallback guide in case Gemini API is down, rate-limited, or unavailable (e.g., 503 error)
+  const getFallbackGuide = (nameStr: string) => {
+    const name = nameStr.toLowerCase();
+    let muscleGroup = "Press";
+    let difficulty = "Orta";
+    let steps = [
+      "Hərəkətə başlamaq üçün düzgün duruş vəziyyəti alın və bədəni sabitləyin.",
+      "Nəzarətli şəkildə yükü qaldırın və ya hərəkəti icra edin.",
+      "Son nöqtədə əzələni 1 saniyə sıxın və başlanğıc vəziyyətinə yavaşca qayıdın."
+    ];
+    let breathing = "Güc tətbiq edərkən (ağırlığı qaldırarkən) nəfəs verin, endirərkən nəfəs alın.";
+    let tip = "Hərəkəti tələsmədən, tam nəzarətlə və təmiz texnika ilə yerinə yetirin.";
+
+    if (name.includes("squat") || name.includes("lunge") || (name.includes("press") && (name.includes("leg") || name.includes("foot")))) {
+      muscleGroup = "Ayaq";
+      difficulty = "Orta";
+      steps = [
+        "Ayaqlarınızı çiyin genişliyində açın, kürəyinizi düz saxlayın və çiyinlərinizi geri çəkin.",
+        "Dizlərinizi bükərək çanağınızı geriyə doğru endirin (sanki stula əyləşirsiniz).",
+        "Dabanlarınızdan güc alaraq yuxarı qalxın və ayaq əzələlərinizi sıxın."
+      ];
+      tip = "Dizlərinizin ayaq barmaqlarınızın ucunu keçməməsinə və daxilə doğru bükülməməsinə diqqət edin.";
+    } else if (name.includes("bench") || name.includes("chest") || name.includes("push") || name.includes("fly")) {
+      muscleGroup = "Sinə";
+      difficulty = "Başlanğıc";
+      steps = [
+        "Skamyaya uzanın, kürəyinizi azca qövsvari saxlayın və dabanlarınızı yerə bərkidin.",
+        "Ağırlığı nəzarətli şəkildə sinənizin orta hissəsinə doğru endirin.",
+        "Dirsəklərinizi tam kilidləmədən ağırlığı yuxarıya doğru itələyin və sinə əzələlərinizi sıxın."
+      ];
+      tip = "Dirsəklərinizi çiyinlərinizlə düz 90 dərəcə bucaq altında yox, təxminən 75 dərəcə bucaq altında saxlayın.";
+    } else if (name.includes("row") || name.includes("pull") || name.includes("lat") || name.includes("deadlift") || name.includes("chin")) {
+      muscleGroup = "Kürək";
+      difficulty = "Orta";
+      steps = [
+        "Kürəyinizi tam düz saxlayaraq gövdənizi hazırlayın və çiyinlərinizi aşağı salın.",
+        "Dirsəklərinizi bədəninizə yaxın saxlayaraq ağırlığı qarnınıza və ya kürəyinizə doğru çəkin.",
+        "Kürək əzələlərinizi tam sıxdıqdan sonra ağırlığı yavaşca buraxaraq əzələni uzadın."
+      ];
+      tip = "Hərəkəti qollarınızla deyil, dirsəklərinizi geri çəkərək kürək gücü ilə etməyə çalışın.";
+    } else if (name.includes("curl") || name.includes("tricep") || name.includes("bicep") || name.includes("pushdown") || name.includes("extension")) {
+      muscleGroup = "Qol";
+      difficulty = "Başlanğıc";
+      steps = [
+        "Dirsəklərinizi gövdənizə yapışdırın və bədəninizi tamamilə sabit saxlayın.",
+        "Yalnız qolun ön/arxa hissəsini hərəkət etdirərək çəkini yuxarı/aşağı idarəli aparın.",
+        "Son nöqtədə əzələni maksimum dərəcədə gərginləşdirin və yavaşca geri qaytarın."
+      ];
+      tip = "Hərəkət zamanı bədəninizi yellətməyin (impulsdan istifadə etməyin) və dirsəklərinizi tərpətməyin.";
+    } else if (name.includes("shoulder") || name.includes("lateral") || name.includes("raise") || name.includes("deltoid") || (name.includes("press") && name.includes("shoulder"))) {
+      muscleGroup = "Çiyin";
+      difficulty = "Orta";
+      steps = [
+        "Düz dayanın və ya oturaraq kürəyinizi dəstəkləyin, çəkiləri çiyin səviyyəsində saxlayın.",
+        "Dirsəklərinizi bir qədər qabaqda saxlayaraq ağırlığı başınızın üzərinə doğru qaldırın.",
+        "Son nöqtədə bir anlıq gözləyin və çəkini yavaş-yavaş başlanğıc vəziyyətinə endirin."
+      ];
+      tip = "Çiyin hərəkətlərində çox ağır çəki yerinə, tam hərəkət diapazonu (ROM) və düzgün texnikaya üstünlük verin.";
+    } else if (name.includes("crunches") || name.includes("plank") || name.includes("leg raise") || name.includes("abs") || name.includes("press") || name.includes("sit-up")) {
+      muscleGroup = "Press";
+      difficulty = "Başlanğıc";
+      steps = [
+        "Mat üzərinə uzanın və ya plank vəziyyəti alaraq bədəninizi düz bir xətt halında saxlayın.",
+        "Qarın əzələlərinizi bərk sıxaraq bədəninizi yuxarı bükün və ya sabit durun.",
+        "Gərginliyi hiss edərək yavaş-yavaş nəfəs alın və başlanğıc vəziyyətinizə qayıdın."
+      ];
+      tip = "Boynunuzu qollarınızla dartmayın; gücü yalnız qarın (nüvə) əzələlərinizdən alın.";
+    } else if (name.includes("cardio") || name.includes("run") || name.includes("treadmill") || name.includes("cycle") || name.includes("bike") || name.includes("elliptical") || name.includes("jump") || name.includes("rope")) {
+      muscleGroup = "Kardio";
+      difficulty = "Başlanğıc";
+      steps = [
+        "Düzgün qaçış və ya idman ayaqqabısı geyinin, bədəninizi isindirin.",
+        "Nəfəs ritminizi qoruyaraq təyin olunmuş tempdə hərəkət edin.",
+        "Məşqin sonunda tempinizi tədricən azaldaraq bədəninizi soyudun (cool down)."
+      ];
+      tip = "Məşq zamanı bol su için və ürək döyüntülərinizi (nəbzinizi) nəzarətdə saxlayın.";
+    } else if (name.includes("glute") || name.includes("deadlift") || name.includes("hip") || name.includes("thrust") || name.includes("calf") || name.includes("calves")) {
+      muscleGroup = "Bud";
+      difficulty = "Orta";
+      steps = [
+        "Ayaqlarınızı yerə möhkəm basın və çanağınızı hərəkətə hazırlayın.",
+        "Bud və büzmək əzələlərinizi sıxaraq çanağınızı yuxarıya doğru itələyin.",
+        "Son nöqtədə əzələni 1-2 saniyə sıxın və nəzarətli şəkildə aşağı endirin."
+      ];
+      tip = "Gücü belinizdən deyil, dabanlarınızdan və bud arxası/büzmək əzələlərinizdən alın.";
+    }
+
+    return {
+      exerciseName: nameStr,
+      muscleGroup,
+      difficulty,
+      steps,
+      breathing,
+      tip
+    };
+  };
+
+  try {
+    const ai = getGeminiClient();
+
+    const systemPrompt = `Sən professional və təcrübəli fitness məşqçisisən. Azərbaycan dilində danışırsan.
+İstifadəçilərə hərəkətlərin düzgün icra qaydalarını, hədəf əzələ qruplarını və təhlükəsizlik qaydalarını izah edirsən.`;
+
+    const userPrompt = `"${exerciseName}" hərəkəti üçün kiçik, cəlbedici icra bələdçisi tərtib et.
+Aşağıdakı JSON strukturunda və yalnız Azərbaycan dilində cavab ver. Cavabda heç bir markdown formatı (\`\`\`json və s.) istifadə etmə, birbaşa JSON-u qaytar:
+
+{
+  "exerciseName": "${exerciseName}",
+  "muscleGroup": "Əsas hədəf əzələsi. YALNIZ bu 8 qrupdan birini seç və dəqiq yaz: 'Sinə', 'Kürək', 'Ayaq', 'Çiyin', 'Qol', 'Press', 'Kardio', 'Bud'",
+  "difficulty": "Hərəkətin çətinlik dərəcəsi ('Başlanğıc', 'Orta', 'İrəli')",
+  "steps": [
+    "Hərəkətə başlamaq üçün ilk hazırlıq və ya düzgün duruş vəziyyəti (1 cümlə).",
+    "Hərəkətin icrası və ağırlığın qaldırılması/endirilməsi anı (1 cümlə).",
+    "Hərəkəti tamamlayarkən diqqət edilməli olan son nöqtə (1 cümlə)."
+  ],
+  "breathing": "Doğru nəfəs alma qaydası (məs. 'Ağırlığı qaldırarkən nəfəs verin, endirərkən nəfəs alın').",
+  "tip": "Hərəkətin daha effektiv olması və zədələnməmək üçün 1 qısa qızıl qayda və ya məsləhət."
+}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const replyText = response.text || "{}";
+    const cleanedText = replyText.replace(/```json|```/g, "").trim();
+    const result = JSON.parse(cleanedText);
+    res.json(result);
+  } catch (error: any) {
+    console.error("Exercise guide generation error, using fallback helper:", error);
+    // Graceful fallback helper in case of high demand, quotas, or key issues
+    try {
+      const fallback = getFallbackGuide(exerciseName);
+      res.json(fallback);
+    } catch (fallbackError) {
+      res.status(500).json({ error: "Bələdçi yaradılarkən xəta baş verdi." });
+    }
+  }
+});
+
 // ─── VITE MIDDLEWARE SETUP ────────────────────────────────
 
 async function startServer() {

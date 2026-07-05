@@ -92,7 +92,7 @@ export default function Chat({ chat, isPremium, onUpdateChat, onTriggerPayment, 
         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-xs text-emerald-400">
           <ShieldCheck className="w-5 h-5 shrink-0" />
           <p>
-            Premium fəaldır. Aİ şəxsi məşqçiniz bədən çəkinizi, boyunuzu, məqsədinizi və proqramınızı tam olaraq analiz edərək sizə cavab verir!
+            Aİ Virtual Məşqçiniz tamamilə ödənişsiz və aktivdir! O, çəkinizi, boyunuzu, məqsədinizi və məşq proqramınızı dərhal analiz edərək sizə fərdi dəstək verəcəkdir.
           </p>
         </div>
       )}
@@ -170,7 +170,7 @@ export default function Chat({ chat, isPremium, onUpdateChat, onTriggerPayment, 
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSend();
           }}
-          className="flex-1 bg-[#1b1d22] border border-[#2a2d34] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-amber-500 disabled:opacity-40"
+          className="flex-1 bg-[#1b1d22] border border-[#2a2d34] rounded-xl px-4 py-3 text-white text-base md:text-sm focus:outline-none focus:border-amber-500 disabled:opacity-40"
         />
         <button
           onClick={() => handleSend()}

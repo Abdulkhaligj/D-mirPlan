@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { WorkoutDay, WorkoutExercise, WorkoutLogs } from "../types";
 import { Plus, Trash2, Edit2, Check, ArrowUp, ArrowDown, Sparkles, AlertTriangle, Eye, RefreshCw, X } from "lucide-react";
+import ExerciseGuideView from "./ExerciseGuideView";
 
 interface ProgramProps {
   program: WorkoutDay[];
@@ -225,6 +226,14 @@ export default function Program({
     const temp = newExs[exIndex];
     newExs[exIndex] = newExs[targetIdx];
     newExs[targetIdx] = temp;
+    newProg[activeDaySafe] = { ...newProg[activeDaySafe], exercises: newExs };
+    onUpdateProgram(newProg);
+  };
+
+  const handleUpdateGuide = (exIndex: number, newGuide: any) => {
+    const newProg = [...program];
+    const newExs = [...newProg[activeDaySafe].exercises];
+    newExs[exIndex] = { ...newExs[exIndex], guide: newGuide };
     newProg[activeDaySafe] = { ...newProg[activeDaySafe], exercises: newExs };
     onUpdateProgram(newProg);
   };
@@ -527,7 +536,7 @@ export default function Program({
                     value={currentDay.subtitle}
                     placeholder="Qısa alt başlıq"
                     onChange={(e) => handleEditDayField("subtitle", e.target.value)}
-                    className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-1.5 text-white text-xs focus:outline-none focus:border-amber-500"
+                    className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-1.5 text-white text-base md:text-xs focus:outline-none focus:border-amber-500"
                   />
                 </div>
               ) : (
@@ -573,7 +582,7 @@ export default function Program({
                       value={ex.name}
                       placeholder="Hərəkətin adı"
                       onChange={(e) => handleEditExField(idx, "name", e.target.value)}
-                      className="flex-1 bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-2 text-white font-bold text-sm focus:outline-none"
+                      className="flex-1 bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-2 text-white font-bold text-base md:text-sm focus:outline-none"
                     />
                     <div className="flex items-center gap-2">
                       <input
@@ -581,14 +590,14 @@ export default function Program({
                         value={ex.sets}
                         placeholder="Set"
                         onChange={(e) => handleEditExField(idx, "sets", Number(e.target.value) || 1)}
-                        className="w-14 bg-[#131417] border border-[#2a2d34] rounded-xl px-2 py-2 text-white text-center text-sm focus:outline-none"
+                        className="w-14 bg-[#131417] border border-[#2a2d34] rounded-xl px-2 py-2 text-white text-center text-base md:text-sm focus:outline-none"
                       />
                       <input
                         type="text"
                         value={ex.reps}
                         placeholder="Təkrar"
                         onChange={(e) => handleEditExField(idx, "reps", e.target.value)}
-                        className="w-18 bg-[#131417] border border-[#2a2d34] rounded-xl px-2 py-2 text-white text-center text-sm focus:outline-none"
+                        className="w-18 bg-[#131417] border border-[#2a2d34] rounded-xl px-2 py-2 text-white text-center text-base md:text-sm focus:outline-none"
                       />
                       <button
                         onClick={() => handleDelEx(idx)}
@@ -635,7 +644,7 @@ export default function Program({
                   value={currentDay.cardio}
                   placeholder="Məs. 15 dəqiqə sürətli qaçış"
                   onChange={(e) => handleEditDayField("cardio", e.target.value)}
-                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-2 text-white text-sm focus:outline-none"
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-2 text-white text-base md:text-sm focus:outline-none"
                 />
               </div>
 
@@ -729,7 +738,7 @@ export default function Program({
                                 placeholder="0"
                                 value={setVal.w}
                                 onChange={(e) => handleSetVal(ex.id, sIdx, "w", e.target.value)}
-                                className="w-full bg-[#131417] border border-[#2a2d34] rounded-lg py-1.5 px-2 text-white text-center text-sm focus:outline-none focus:border-amber-500"
+                                className="w-full bg-[#131417] border border-[#2a2d34] rounded-lg py-1.5 px-2 text-white text-center text-base md:text-sm focus:outline-none focus:border-amber-500"
                               />
                               <input
                                 type="number"
@@ -737,7 +746,7 @@ export default function Program({
                                 placeholder={ex.reps.split("-")[0]}
                                 value={setVal.r}
                                 onChange={(e) => handleSetVal(ex.id, sIdx, "r", e.target.value)}
-                                className="w-full bg-[#131417] border border-[#2a2d34] rounded-lg py-1.5 px-2 text-white text-center text-sm focus:outline-none focus:border-amber-500"
+                                className="w-full bg-[#131417] border border-[#2a2d34] rounded-lg py-1.5 px-2 text-white text-center text-base md:text-sm focus:outline-none focus:border-amber-500"
                               />
                               <div className="flex justify-center">
                                 <button
@@ -754,6 +763,14 @@ export default function Program({
                             </div>
                           );
                         })}
+
+                        {/* AI Exercise Guide & Illustration */}
+                        <ExerciseGuideView
+                          exercise={ex}
+                          onUpdateGuide={(newGuide) => handleUpdateGuide(idx, newGuide)}
+                          isPremium={isPremium}
+                          onTriggerPayment={onTriggerPayment}
+                        />
                       </div>
                     )}
                   </div>
@@ -808,7 +825,7 @@ export default function Program({
                     setSearchQuery(e.target.value);
                     setCustomExName(e.target.value);
                   }}
-                  className="flex-1 bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-2 text-white focus:outline-none text-sm"
+                  className="flex-1 bg-[#131417] border border-[#2a2d34] rounded-xl px-3 py-2 text-white focus:outline-none text-base md:text-sm"
                 />
                 <button
                   onClick={() => {

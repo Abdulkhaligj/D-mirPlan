@@ -177,7 +177,7 @@ export default function BodyMeasurements({ body, onUpdateBody }: BodyMeasurement
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -189,7 +189,7 @@ export default function BodyMeasurements({ body, onUpdateBody }: BodyMeasurement
               placeholder="Məs. 75.5"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -201,7 +201,7 @@ export default function BodyMeasurements({ body, onUpdateBody }: BodyMeasurement
               placeholder="Məs. 178"
               value={height}
               onChange={(e) => setHeight(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -213,7 +213,7 @@ export default function BodyMeasurements({ body, onUpdateBody }: BodyMeasurement
               placeholder="Məs. 104"
               value={chest}
               onChange={(e) => setChest(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -225,7 +225,7 @@ export default function BodyMeasurements({ body, onUpdateBody }: BodyMeasurement
               placeholder="Məs. 82"
               value={waist}
               onChange={(e) => setWaist(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -237,7 +237,7 @@ export default function BodyMeasurements({ body, onUpdateBody }: BodyMeasurement
               placeholder="Məs. 38.5"
               value={arm}
               onChange={(e) => setArm(e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
         </div>

@@ -34,6 +34,21 @@
       "properties": {
         "anthropicKey": { "type": "string" }
       }
+    },
+    "PaymentRequest": {
+      "title": "PaymentRequest",
+      "description": "Premium purchase request from a user to the admin",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderCardLast4": { "type": "string" },
+        "amount": { "type": "string" },
+        "status": { "type": "string" },
+        "timestamp": { "type": "integer" }
+      }
     }
   },
   "firestore": {
@@ -48,6 +63,10 @@
     "config/secret": {
       "schema": "SecretConfig",
       "description": "Secret configuration keys"
+    },
+    "paymentRequests/{requestId}": {
+      "schema": "PaymentRequest",
+      "description": "Pending and past premium purchase requests"
     }
   }
 }

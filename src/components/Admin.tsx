@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { db, handleFirestoreError, OperationType } from "../firebase";
-import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
-import { User, ShieldAlert, Sparkles, Search, ArrowLeft, Crown, Settings2, ShieldCheck, Mail, Calendar, DollarSign, Activity } from "lucide-react";
+import { collection, getDocs, doc, setDoc, getDoc, deleteDoc, query, where } from "firebase/firestore";
+import { User, ShieldAlert, Sparkles, Search, ArrowLeft, Crown, Settings2, ShieldCheck, Mail, Calendar, DollarSign, Activity, Clock, Trash2, CheckCircle, XCircle } from "lucide-react";
 import { PublicConfig } from "../types";
 
 interface AdminProps {
@@ -15,13 +15,41 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+
+  const [adminToast, setAdminToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    type: "approve" | "reject" | "delete" | "grant_1" | "grant_3" | "grant_12" | "grant_unlimited";
+    req?: any;
+    months?: number;
+  } | null>(null);
+
+  const triggerAdminToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setAdminToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (adminToast) {
+      const timer = setTimeout(() => setAdminToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [adminToast]);
+
+  // Reset revoke confirmation when selected user changes
+  useEffect(() => {
+    setShowRevokeConfirm(false);
+  }, [selectedUser]);
 
   // General public configurations
   const [payLink, setPayLink] = useState("");
   const [priceText, setPriceText] = useState("₼4.99/ay");
   const [whatsapp, setWhatsapp] = useState("");
   const [sharedKey, setSharedKey] = useState("");
+  const [adminCardNo, setAdminCardNo] = useState("");
+  const [adminCardHolder, setAdminCardHolder] = useState("");
+  const [adminCardBank, setAdminCardBank] = useState("");
   const [savingConfig, setSavingConfig] = useState(false);
+  const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -53,6 +81,9 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
         setPayLink(d.paymentLink || "");
         setPriceText(d.price || "₼4.99/ay");
         setWhatsapp(d.whatsapp || "");
+        setAdminCardNo(d.cardNo || "");
+        setAdminCardHolder(d.cardHolder || "");
+        setAdminCardBank(d.cardBank || "");
       }
 
       // 3. Fetch Secret Key (without throwing if missing)
@@ -65,6 +96,19 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
       }
       if (secSnap && secSnap.exists()) {
         setSharedKey(secSnap.data().anthropicKey || "");
+      }
+
+      // 4. Fetch Payment Requests
+      let paySnap;
+      try {
+        paySnap = await getDocs(collection(db, "paymentRequests"));
+      } catch (err) {
+        console.error("Error fetching payment requests:", err);
+      }
+      if (paySnap) {
+        const reqList = paySnap.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+        reqList.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        setPaymentRequests(reqList);
       }
     } catch (err: any) {
       console.error("Admin loading error:", err);
@@ -102,6 +146,9 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
           paymentLink: payLink.trim(),
           price: priceText.trim() || "₼4.99/ay",
           whatsapp: whatsapp.trim(),
+          cardNo: adminCardNo.trim(),
+          cardHolder: adminCardHolder.trim(),
+          cardBank: adminCardBank.trim(),
         }, { merge: true });
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, "config/public");
@@ -119,9 +166,10 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
         }
       }
 
-      alert("Tənzimləmələr uğurla yadda saxlanıldı! ✓");
+      triggerAdminToast("Tənzimləmələr uğurla yadda saxlanıldı! ✓", "success");
     } catch (err: any) {
       console.error("Error saving config:", err);
+      triggerAdminToast("Tənzimləmələr yadda saxlanılarkən xəta: " + err.message, "error");
     } finally {
       setSavingConfig(false);
     }
@@ -153,14 +201,14 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
       setSelectedUser(updatedUser);
       setUsers(users.map((u) => (u.id === selectedUser.id ? { ...u, ...updatedUser } : u)));
       setFilteredUsers(filteredUsers.map((u) => (u.id === selectedUser.id ? { ...u, ...updatedUser } : u)));
-      alert("İstifadəçiyə uğurla Premium statusu verildi! ⭐");
+      triggerAdminToast("İstifadəçiyə uğurla Premium statusu verildi! ⭐", "success");
     } catch (err: any) {
-      alert("Xəta baş verdi: " + err.message);
+      triggerAdminToast("Xəta baş verdi: " + err.message, "error");
     }
   };
 
   const handleRevokePremium = async () => {
-    if (!selectedUser || !confirm("Bu istifadəçinin Premium statusunu ləğv etmək istədiyinizə əminsiniz?")) return;
+    if (!selectedUser) return;
 
     try {
       try {
@@ -182,9 +230,117 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
       setSelectedUser(updatedUser);
       setUsers(users.map((u) => (u.id === selectedUser.id ? { ...u, ...updatedUser } : u)));
       setFilteredUsers(filteredUsers.map((u) => (u.id === selectedUser.id ? { ...u, ...updatedUser } : u)));
-      alert("Premium statusu ləğv edildi.");
+      setShowRevokeConfirm(false);
+      triggerAdminToast("Premium statusu ləğv edildi.", "info");
     } catch (err: any) {
-      alert("Xəta baş verdi: " + err.message);
+      triggerAdminToast("Xəta baş verdi: " + err.message, "error");
+    }
+  };
+
+  const handleApproveRequest = (req: any) => {
+    setPendingConfirm({ type: "approve", req });
+  };
+
+  const handleRejectRequest = (req: any) => {
+    setPendingConfirm({ type: "reject", req });
+  };
+
+  const handleDeleteRequest = (reqId: string) => {
+    setPendingConfirm({ type: "delete", req: { id: reqId } });
+  };
+
+  const executeConfirmedAction = async () => {
+    if (!pendingConfirm) return;
+    const { type, req } = pendingConfirm;
+    setPendingConfirm(null);
+
+    try {
+      if (type === "approve" && req) {
+        if (!req.id) throw new Error("Sorğu ID-si tapılmadı.");
+        
+        let targetUserId = req.userId;
+        if (!targetUserId && req.userEmail) {
+          const searchEmail = req.userEmail.trim().toLowerCase();
+          if (searchEmail) {
+            // 1. Try in-memory list first
+            const found = users.find((u) => u.email && u.email.toLowerCase() === searchEmail);
+            if (found) {
+              targetUserId = found.id;
+            } else {
+              // 2. Try querying Firestore dynamically in case users list is stale
+              try {
+                const q = query(collection(db, "users"), where("email", "==", searchEmail));
+                const qSnap = await getDocs(q);
+                if (!qSnap.empty) {
+                  targetUserId = qSnap.docs[0].id;
+                }
+              } catch (e) {
+                console.error("Dynamic user query error:", e);
+              }
+            }
+          }
+        }
+
+        // If STILL not found, use req.userId if available or generate a fallback ID
+        if (!targetUserId) {
+          targetUserId = req.userId || req.id || `user-fallback-${Date.now()}`;
+        }
+
+        // Update payment request status
+        await setDoc(doc(db, "paymentRequests", req.id), { status: "approved" }, { merge: true });
+
+        // Calculate premium expiry
+        const premiumUntil = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        
+        // Update users collection, also heal name/email if empty
+        await setDoc(
+          doc(db, "users", targetUserId),
+          {
+            premium: true,
+            premiumUntil,
+            premiumPlan: req.amount || "1 Aylıq Premium",
+            email: req.userEmail || "",
+            name: req.userName || "",
+          },
+          { merge: true }
+        );
+
+        // Update local state arrays reactively
+        setPaymentRequests(paymentRequests.map((r) => (r.id === req.id ? { ...r, status: "approved" } : r)));
+
+        const existingUser = users.find((u) => u.id === targetUserId);
+        const updatedPremiumUser = {
+          id: targetUserId,
+          premium: true,
+          premiumUntil,
+          premiumPlan: req.amount || "1 Aylıq Premium",
+          email: req.userEmail || (existingUser?.email || ""),
+          name: req.userName || (existingUser?.name || "Adsız"),
+          lastActive: existingUser?.lastActive || Date.now(),
+          programDays: existingUser?.programDays || 0,
+          weight: existingUser?.weight || null,
+        };
+
+        if (existingUser) {
+          setUsers(users.map((u) => u.id === targetUserId ? { ...u, ...updatedPremiumUser } : u));
+          setFilteredUsers(filteredUsers.map((u) => u.id === targetUserId ? { ...u, ...updatedPremiumUser } : u));
+        } else {
+          setUsers([updatedPremiumUser, ...users]);
+          setFilteredUsers([updatedPremiumUser, ...filteredUsers]);
+        }
+
+        triggerAdminToast("Ödəniş uğurla təsdiqləndi və Premium aktivləşdirildi! 🎉", "success");
+      } else if (type === "reject" && req) {
+        await setDoc(doc(db, "paymentRequests", req.id), { status: "rejected" }, { merge: true });
+        setPaymentRequests(paymentRequests.map((r) => (r.id === req.id ? { ...r, status: "rejected" } : r)));
+        triggerAdminToast("Ödəniş sorğusu rədd edildi.", "info");
+      } else if (type === "delete" && req) {
+        await deleteDoc(doc(db, "paymentRequests", req.id));
+        setPaymentRequests(paymentRequests.filter((r) => r.id !== req.id));
+        triggerAdminToast("Sorğu tarixçədən silindi.", "success");
+      }
+    } catch (err: any) {
+      triggerAdminToast("Xəta baş verdi: " + err.message, "error");
     }
   };
 
@@ -316,13 +472,31 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
               >
                 Sonsuz / Limitsiz
               </button>
-              {selectedUser.premium && (
-                <button
-                  onClick={handleRevokePremium}
-                  className="py-1.5 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-                >
-                  Ləğv et
-                </button>
+              {showRevokeConfirm ? (
+                <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 p-2 rounded-xl animate-fadeIn">
+                  <span className="text-[10px] text-red-400 font-bold">Ləğv etmək istəyirsiniz?</span>
+                  <button
+                    onClick={handleRevokePremium}
+                    className="py-1 px-2.5 bg-red-500 text-white hover:bg-red-600 rounded-lg text-[10px] font-black cursor-pointer transition-all"
+                  >
+                    Bəli, Ləğv et
+                  </button>
+                  <button
+                    onClick={() => setShowRevokeConfirm(false)}
+                    className="py-1 px-2.5 bg-[#131417] hover:bg-[#22242b] text-gray-400 border border-[#2a2d34] rounded-lg text-[10px] font-semibold cursor-pointer transition-all"
+                  >
+                    Xeyr
+                  </button>
+                </div>
+              ) : (
+                (selectedUser.premium || selectedUser.premiumUntil) && (
+                  <button
+                    onClick={() => setShowRevokeConfirm(true)}
+                    className="py-1.5 px-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+                  >
+                    Ləğv et
+                  </button>
+                )
               )}
             </div>
           </div>
@@ -368,7 +542,7 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
                   placeholder="https://payriff.com/... (Hosted Link)"
                   value={payLink}
                   onChange={(e) => setPayLink(e.target.value)}
-                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm"
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
                 />
               </div>
 
@@ -379,7 +553,7 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
                   placeholder="Məs. ₼4.99/ay"
                   value={priceText}
                   onChange={(e) => setPriceText(e.target.value)}
-                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm"
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
                 />
               </div>
 
@@ -390,7 +564,7 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
                   placeholder="Məs. +994 50 123 45 67"
                   value={whatsapp}
                   onChange={(e) => setWhatsapp(e.target.value)}
-                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm"
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
                 />
               </div>
 
@@ -401,7 +575,40 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
                   placeholder="Açarı dəyişmək istəyirsinizsə, yenisini daxil edin"
                   value={sharedKey}
                   onChange={(e) => setSharedKey(e.target.value)}
-                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm"
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Admin Kart Nömrəsi (Direct Transfer)</label>
+                <input
+                  type="text"
+                  placeholder="Məs. 4169 0000 0000 0000"
+                  value={adminCardNo}
+                  onChange={(e) => setAdminCardNo(e.target.value)}
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Kart Sahibi (Ad Soyad)</label>
+                <input
+                  type="text"
+                  placeholder="Məs. ABDULKHALIG J."
+                  value={adminCardHolder}
+                  onChange={(e) => setAdminCardHolder(e.target.value)}
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Bankın Adı</label>
+                <input
+                  type="text"
+                  placeholder="Məs. Kapital Bank, Leo Bank, ABB"
+                  value={adminCardBank}
+                  onChange={(e) => setAdminCardBank(e.target.value)}
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm"
                 />
               </div>
             </div>
@@ -415,6 +622,87 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
             </button>
           </div>
 
+          {/* Gözləyən Ödəniş Sorğuları */}
+          <div className="bg-[#1b1d22] border border-[#2a2d34] rounded-2xl p-5 space-y-4 animate-fadeIn">
+            <h3 className="font-black italic text-sm text-white uppercase tracking-wider flex items-center gap-2">
+              💵 Ödəniş Sorğuları ({paymentRequests.filter((r) => r.status === "pending").length} Gözləyən)
+            </h3>
+
+            {paymentRequests.length === 0 ? (
+              <p className="text-xs text-gray-500 text-center py-2">Hələ ki, heç bir ödəniş sorğusu yoxdur.</p>
+            ) : (
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 divide-y divide-[#2a2d34]/30">
+                {paymentRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="pt-3 first:pt-0 space-y-2"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <div className="text-xs font-black text-white flex items-center gap-1.5 flex-wrap">
+                          <span>{req.senderName}</span>
+                          <span className="text-[10px] font-mono bg-[#131417] text-gray-400 px-1.5 py-0.5 rounded border border-[#2a2d34]">
+                            **** {req.senderCardLast4}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-gray-500 mt-0.5">{req.userEmail}</div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <span className="text-xs font-black text-amber-500 block">{req.amount}</span>
+                        <span className="text-[9px] text-gray-500 block mt-0.5">{fmtDT(req.timestamp)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[9px] font-bold uppercase tracking-wider">
+                        Status:{" "}
+                        <span
+                          className={
+                            req.status === "pending"
+                              ? "text-amber-500 font-black animate-pulse"
+                              : req.status === "approved"
+                              ? "text-emerald-400 font-black"
+                              : "text-red-400 font-black"
+                          }
+                        >
+                          {req.status === "pending"
+                            ? "Gözləyir ⏳"
+                            : req.status === "approved"
+                            ? "Təsdiqləndi ✓"
+                            : "Rədd edilib ✗"}
+                        </span>
+                      </span>
+
+                      {req.status === "pending" ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleApproveRequest(req)}
+                            className="py-1 px-2.5 bg-emerald-500 hover:bg-emerald-600 text-gray-950 font-black rounded-lg text-[10px] uppercase cursor-pointer transition-all"
+                          >
+                            Təsdiqlə
+                          </button>
+                          <button
+                            onClick={() => handleRejectRequest(req)}
+                            className="py-1 px-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold rounded-lg text-[10px] uppercase cursor-pointer transition-all"
+                          >
+                            Rədd et
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleDeleteRequest(req.id)}
+                          className="text-[10px] text-gray-500 hover:text-red-400 font-bold cursor-pointer transition-all"
+                        >
+                          Tarixçədən Sil
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Users List with search */}
           <div className="bg-[#1b1d22] border border-[#2a2d34] rounded-2xl p-5 space-y-4">
             <div className="relative">
@@ -424,7 +712,7 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
                 placeholder="E-poçt və ya ad üzrə axtarış..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none text-sm focus:border-amber-500"
+                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl pl-10 pr-4 py-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
               />
             </div>
 
@@ -458,6 +746,95 @@ export default function Admin({ currentUserEmail, onBackToApp }: AdminProps) {
                   </div>
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Admin Toast Notification */}
+      {adminToast && (
+        <div className="fixed bottom-5 right-5 z-[100] max-w-sm bg-[#1b1d22] border border-[#2a2d34] rounded-2xl p-4 shadow-2xl flex items-center gap-3 animate-slideIn">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+            adminToast.type === "success" 
+              ? "bg-emerald-500/10 text-emerald-400" 
+              : adminToast.type === "error"
+              ? "bg-red-500/10 text-red-400"
+              : "bg-blue-500/10 text-blue-400"
+          }`}>
+            {adminToast.type === "success" ? (
+              <CheckCircle className="w-5 h-5" />
+            ) : adminToast.type === "error" ? (
+              <XCircle className="w-5 h-5" />
+            ) : (
+              <Sparkles className="w-5 h-5" />
+            )}
+          </div>
+          <div className="text-xs font-bold text-white flex-1">{adminToast.message}</div>
+          <button 
+            onClick={() => setAdminToast(null)}
+            className="text-[10px] font-black uppercase text-gray-500 hover:text-white ml-2 cursor-pointer shrink-0"
+          >
+            X
+          </button>
+        </div>
+      )}
+
+      {/* Custom Stateful Confirmation Modal */}
+      {pendingConfirm && (
+        <div className="fixed inset-0 bg-black/85 z-[90] flex items-center justify-center p-4">
+          <div className="bg-[#1b1d22] border border-[#2a2d34] rounded-2xl w-full max-w-md p-6 relative space-y-5 shadow-2xl text-center animate-scaleIn">
+            <div className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl ${
+              pendingConfirm.type === "approve"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : pendingConfirm.type === "reject"
+                ? "bg-red-500/10 text-red-400"
+                : "bg-amber-500/10 text-amber-500"
+            }`}>
+              {pendingConfirm.type === "approve" ? (
+                <CheckCircle className="w-6 h-6" />
+              ) : pendingConfirm.type === "reject" ? (
+                <XCircle className="w-6 h-6" />
+              ) : (
+                <Trash2 className="w-6 h-6" />
+              )}
+            </div>
+
+            <div>
+              <h3 className="font-black italic text-lg text-white uppercase tracking-wide">
+                {pendingConfirm.type === "approve" 
+                  ? "Ödənişi Təsdiqlə" 
+                  : pendingConfirm.type === "reject" 
+                  ? "Sorğunu Rədd Et" 
+                  : "Tarixçəni Sil"}
+              </h3>
+              <p className="text-xs text-gray-400 mt-2 max-w-xs mx-auto leading-relaxed">
+                {pendingConfirm.type === "approve" && pendingConfirm.req
+                  ? `${pendingConfirm.req.userEmail} ünvanına aid ${pendingConfirm.req.amount} məbləğində ödəniş sorğusunu təsdiqləyib Premium statusunu aktivləşdirmək istədiyinizə əminsiniz?`
+                  : pendingConfirm.type === "reject" && pendingConfirm.req
+                  ? `${pendingConfirm.req.userEmail} ünvanına aid ödəniş sorğusunu rədd etmək istədiyinizə əminsiniz?`
+                  : "Bu sorğu qeydini tarixçədən həmişəlik silmək istədiyinizə əminsiniz?"}
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={executeConfirmedAction}
+                className={`flex-1 py-3 text-xs font-black rounded-xl uppercase cursor-pointer transition-all ${
+                  pendingConfirm.type === "approve"
+                    ? "bg-emerald-500 hover:bg-emerald-600 text-gray-950"
+                    : pendingConfirm.type === "reject"
+                    ? "bg-red-500 hover:bg-red-600 text-white"
+                    : "bg-amber-500 hover:bg-amber-600 text-gray-950"
+                }`}
+              >
+                Bəli, Təsdiq et
+              </button>
+              <button
+                onClick={() => setPendingConfirm(null)}
+                className="flex-1 py-3 bg-[#131417] hover:bg-[#22242b] border border-[#2a2d34] text-gray-400 font-bold rounded-xl text-xs uppercase transition-all cursor-pointer"
+              >
+                Xeyr, İmtina
+              </button>
             </div>
           </div>
         </div>

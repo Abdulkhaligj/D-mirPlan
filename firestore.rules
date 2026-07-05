@@ -16,7 +16,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email.matches('(?i)abdulkhaligj@gmail.com');
+      return isSignedIn() && 
+             request.auth.token != null && 
+             request.auth.token.email != null && 
+             (request.auth.token.email == 'abdulkhaligj@gmail.com' || request.auth.token.email.lower() == 'abdulkhaligj@gmail.com');
     }
 
     function isValidId(id) {
@@ -38,6 +41,13 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow create, update: if (isOwner(userId) || isAdmin()) && isValidId(userId);
       allow delete: if isAdmin();
+    }
+
+    // Payment Requests Collection Rules
+    match /paymentRequests/{requestId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
   }
 }

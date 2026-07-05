@@ -1,9 +1,18 @@
+export interface ExerciseGuide {
+  muscleGroup: string;
+  difficulty: string;
+  steps: string[];
+  breathing: string;
+  tip: string;
+}
+
 export interface WorkoutExercise {
   id: string;
   name: string;
   sets: number;
   reps: string;
   isTime: boolean;
+  guide?: ExerciseGuide;
 }
 
 export interface WorkoutDay {
@@ -82,6 +91,22 @@ export interface PublicConfig {
   paymentLink: string;
   price: string;
   whatsapp: string;
+  cardNo?: string;
+  cardHolder?: string;
+  cardBank?: string;
+}
+
+export interface ReminderSettings {
+  enabled: boolean;
+  time: string;
+  days: number[]; // 0 = Bazar, 1 = Bazar ertəsi, 2 = Çərşənbə axşamı, 3 = Çərşənbə, 4 = Cümə axşamı, 5 = Cümə, 6 = Şənbə
+  browserNotifications: boolean;
+  lastNotifiedDate?: string;
+  waterEnabled?: boolean;
+  waterIntervalHours?: number; // every X hours
+  waterStartTime?: string; // start of day water reminders
+  waterEndTime?: string; // end of day water reminders
+  lastWaterNotifiedTimestamp?: number; // timestamp of last notified drink water alert
 }
 
 export interface UserState {
@@ -92,5 +117,6 @@ export interface UserState {
   bf: BodyFatNavy | null;
   ai: BodyFatAI | null;
   chat: ChatMessage[];
+  reminders?: ReminderSettings;
   _updatedAt?: number;
 }

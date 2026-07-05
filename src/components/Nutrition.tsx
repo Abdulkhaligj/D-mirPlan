@@ -112,7 +112,7 @@ export default function Nutrition({ nutri, latestMeasure, onUpdateNutri }: Nutri
               placeholder="Məs. 25"
               value={nutri.age}
               onChange={(e) => handleFieldChange("age", e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             />
           </div>
 
@@ -121,7 +121,7 @@ export default function Nutrition({ nutri, latestMeasure, onUpdateNutri }: Nutri
             <select
               value={nutri.gender}
               onChange={(e) => handleFieldChange("gender", e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             >
               <option value="m">Kişi</option>
               <option value="f">Qadın</option>
@@ -133,7 +133,7 @@ export default function Nutrition({ nutri, latestMeasure, onUpdateNutri }: Nutri
             <select
               value={nutri.activity}
               onChange={(e) => handleFieldChange("activity", e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             >
               <option value="1.2">Az fəal (Məşqsiz, oturaq iş)</option>
               <option value="1.375">Yüngül fəal (Həftədə 1-2 gün məşq)</option>
@@ -147,7 +147,7 @@ export default function Nutrition({ nutri, latestMeasure, onUpdateNutri }: Nutri
             <select
               value={nutri.goal}
               onChange={(e) => handleFieldChange("goal", e.target.value)}
-              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-sm focus:border-amber-500"
+              className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500"
             >
               <option value="cut">Arıqlama (Fat Loss)</option>
               <option value="maintain">Formanı qoruma (Maintenance)</option>

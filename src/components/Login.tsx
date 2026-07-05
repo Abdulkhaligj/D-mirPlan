@@ -106,7 +106,7 @@ export default function Login({ onSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#131417] flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] bg-[#131417] flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-[#1b1d22] border border-[#2a2d34] rounded-2xl p-6 md:p-8 shadow-xl">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 height-12 bg-amber-500/10 text-amber-500 p-3 rounded-xl mb-3">
@@ -152,7 +152,7 @@ export default function Login({ onSuccess }: LoginProps) {
                   placeholder="Adınız və Soyadınız"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
+                  className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-amber-500 transition-all text-base md:text-sm"
                 />
               </div>
             </div>
@@ -167,7 +167,7 @@ export default function Login({ onSuccess }: LoginProps) {
                 placeholder="sen@mail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
+                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl py-3 pl-11 pr-4 text-white focus:outline-none focus:border-amber-500 transition-all text-base md:text-sm"
               />
             </div>
           </div>
@@ -181,7 +181,7 @@ export default function Login({ onSuccess }: LoginProps) {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl py-3 pl-11 pr-12 text-white focus:outline-none focus:border-amber-500 transition-all text-sm"
+                className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl py-3 pl-11 pr-12 text-white focus:outline-none focus:border-amber-500 transition-all text-base md:text-sm"
               />
               <button
                 type="button"
