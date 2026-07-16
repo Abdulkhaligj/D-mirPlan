@@ -49,12 +49,40 @@
         "status": { "type": "string" },
         "timestamp": { "type": "integer" }
       }
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Weekly volume lifted by a user for the leaderboard",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "weeklyVolume": { "type": "number" },
+        "updatedAt": { "type": "integer" }
+      },
+      "required": ["userId", "name", "weeklyVolume", "updatedAt"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Payment receipt for user subscription",
+      "type": "object",
+      "properties": {
+        "date": { "type": "integer" },
+        "amount": { "type": "string" },
+        "cardUsed": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "failed"] }
+      },
+      "required": ["date", "amount", "cardUsed", "status"]
     }
   },
   "firestore": {
     "users/{userId}": {
       "schema": "User",
       "description": "User profiles and exercise/nutrition logs"
+    },
+    "users/{userId}/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payment records for the user"
     },
     "config/public": {
       "schema": "PublicConfig",
@@ -67,6 +95,10 @@
     "paymentRequests/{requestId}": {
       "schema": "PaymentRequest",
       "description": "Pending and past premium purchase requests"
+    },
+    "leaderboard/{userId}": {
+      "schema": "LeaderboardEntry",
+      "description": "Weekly volume lifted for community leaderboard"
     }
   }
 }

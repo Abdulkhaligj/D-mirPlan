@@ -79,6 +79,7 @@ export interface NutritionData {
   gender: "m" | "f";
   activity: string; // e.g., "1.375", "1.55"
   goal: "cut" | "maintain" | "bulk";
+  targetWeight?: number | null;
 }
 
 export interface PremiumInfo {

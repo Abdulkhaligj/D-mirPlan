@@ -43,11 +43,25 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Payments Subcollection Rules
+    match /users/{userId}/payments/{paymentId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidId(paymentId);
+      allow update, delete: if isAdmin();
+    }
+
     // Payment Requests Collection Rules
     match /paymentRequests/{requestId} {
       allow read: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if isAdmin();
+    }
+
+    // Leaderboard Collection Rules
+    match /leaderboard/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isAdmin();
     }
   }
 }

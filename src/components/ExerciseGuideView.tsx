@@ -7,6 +7,7 @@ interface ExerciseGuideViewProps {
   onUpdateGuide: (guide: ExerciseGuide) => void;
   isPremium: boolean;
   onTriggerPayment: () => void;
+  lang?: string;
 }
 
 export default function ExerciseGuideView({
@@ -14,6 +15,7 @@ export default function ExerciseGuideView({
   onUpdateGuide,
   isPremium,
   onTriggerPayment,
+  lang = "az",
 }: ExerciseGuideViewProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,164 @@ export default function ExerciseGuideView({
   const [isPlaying, setIsPlaying] = useState(true);
   const [videoProgress, setVideoProgress] = useState(15);
   const [videoSpeed, setVideoSpeed] = useState<number>(1);
+
+  const translations = {
+    az: {
+      tabSimulator: "🤖 Aİ Simulyasiya",
+      tabVideo: "🎥 Video Təlimat",
+      tabMuscles: "👤 Əzələ Fokusu",
+      aiTrajectoryAnalysis: "Aİ TRAKTORİYA ANALİZİ",
+      elbowAngle: "Dirsək: 75° (Təhlükəsiz)",
+      speed: "Sürət: 0.45 m/s",
+      loadDistribution: "YÜK PAYLANMASI",
+      aiBiomechanicsDegree: "Aİ BİOMEXANİKA DƏRƏCƏSİ",
+      hipAngle: "Künc Dərinliyi: 92°",
+      kneeProtection: "Diz qorunması: Aktiv",
+      heelPressure: "DABAN TƏZYİQİ",
+      heelStable: "98% Stabil",
+      backMuscleTension: "KÜRƏK ƏZƏLƏ GƏRGİNLİYİ",
+      contraction: "Kontraksiya: 96%",
+      amplitude: "Genişlik: Tam ROM",
+      wristTension: "BİLƏK GƏRGİNLİYİ",
+      optimal: "Optimal",
+      armBiomechanicsAnalysis: "QOL BİOMEXANİKA ANALİZİ",
+      flexion: "Bükülmə: 42° - 175°",
+      peakTension: "Pik gərginlik: 98%",
+      elbowPosition: "DİRSƏK VƏZİYYƏTİ",
+      elbowStable: "Sabit (Stabil)",
+      aiMovementGuide: "Aİ HƏRƏKƏT BƏLƏDÇİSİ",
+      trajectoryActive: "Trayektoriya: Aktiv",
+      stanceType: "DURUŞ NÖVÜ",
+      optimalAndStable: "Optimal & Stabil",
+      videoTitle: "Aİ TEXNİKA VİDEOSU",
+      videoLoopActive: "VIDEO LOOP ACTIVE",
+      step: "ADDIM",
+      executionRule: "İcra qaydası:",
+      pause: "PAUSE",
+      play: "PLAY",
+      speedBtn: "Sürət",
+      youtubeBtn: "🎥 YouTube-da Düzgün Texnikanı İzlə",
+      techniqueAndIllustration: "Məşq Texnikası & İllüstrasiya",
+      guideSub: "Aİ tərəfindən hazırlanmış icra qaydası",
+      openGuide: "Bələdçini Aç",
+      analyzing: "Aİ hərəkət mexanikasını analiz edir...",
+      analyzingSub: "Hərəkətin ən təhlükəsiz və effektiv icra bucaqları, düzgün tənəffüs fazaları hesablanır.",
+      retryBtn: "Yenidən Cəhd Et",
+      difficulty: "Çətinlik",
+      executionPhases: "İcra mərhələləri",
+      breathing: "💨 Nəfəs Alıb-Vermə",
+      goldenRule: "💡 Qızıl Qayda",
+      aiSimulator: "Aİ SİMULYATORU",
+      angleLabel: "Bucağı",
+      perfectBiomechanics: "Mükəmməl biomexanika",
+      defaultError: "Aİ bələdçisi yüklənərkən xəta baş verdi.",
+      otherMuscle: "Digər"
+    },
+    en: {
+      tabSimulator: "🤖 AI Simulation",
+      tabVideo: "🎥 Video Guide",
+      tabMuscles: "👤 Muscle Focus",
+      aiTrajectoryAnalysis: "AI TRAJECTORY ANALYSIS",
+      elbowAngle: "Elbow: 75° (Safe)",
+      speed: "Speed: 0.45 m/s",
+      loadDistribution: "LOAD DISTRIBUTION",
+      aiBiomechanicsDegree: "AI BIOMECHANICS DEGREE",
+      hipAngle: "Depth Angle: 92°",
+      kneeProtection: "Knee protection: Active",
+      heelPressure: "HEEL PRESSURE",
+      heelStable: "98% Stable",
+      backMuscleTension: "BACK MUSCLE TENSION",
+      contraction: "Contraction: 96%",
+      amplitude: "Range: Full ROM",
+      wristTension: "WRIST TENSION",
+      optimal: "Optimal",
+      armBiomechanicsAnalysis: "ARM BIOMECHANICS ANALYSIS",
+      flexion: "Flexion: 42° - 175°",
+      peakTension: "Peak tension: 98%",
+      elbowPosition: "ELBOW POSITION",
+      elbowStable: "Fixed (Stable)",
+      aiMovementGuide: "AI MOVEMENT GUIDE",
+      trajectoryActive: "Trajectory: Active",
+      stanceType: "STANCE TYPE",
+      optimalAndStable: "Optimal & Stable",
+      videoTitle: "AI TECHNIQUE VIDEO",
+      videoLoopActive: "VIDEO LOOP ACTIVE",
+      step: "STEP",
+      executionRule: "Execution rule:",
+      pause: "PAUSE",
+      play: "PLAY",
+      speedBtn: "Speed",
+      youtubeBtn: "🎥 Watch Correct Technique on YouTube",
+      techniqueAndIllustration: "Exercise Technique & Illustration",
+      guideSub: "Execution guide designed by AI",
+      openGuide: "Open Guide",
+      analyzing: "AI is analyzing movement mechanics...",
+      analyzingSub: "Calculating safest & most effective movement angles and correct breathing phases.",
+      retryBtn: "Try Again",
+      difficulty: "Difficulty",
+      executionPhases: "Execution Phases",
+      breathing: "💨 Breathing",
+      goldenRule: "💡 Golden Rule",
+      aiSimulator: "AI SIMULATOR",
+      angleLabel: "Angle",
+      perfectBiomechanics: "Perfect biomechanics",
+      defaultError: "Error occurred while loading AI guide.",
+      otherMuscle: "Other"
+    },
+    ru: {
+      tabSimulator: "🤖 ИИ Симуляция",
+      tabVideo: "🎥 Видео Инструкция",
+      tabMuscles: "👤 Фокус на Мышцы",
+      aiTrajectoryAnalysis: "ИИ АНАЛИЗ ТРАЕКТОРИИ",
+      elbowAngle: "Локоть: 75° (Безопасно)",
+      speed: "Скорость: 0.45 м/с",
+      loadDistribution: "РАСПРЕДЕЛЕНИЕ НАГРУЗКИ",
+      aiBiomechanicsDegree: "ИИ ГРАДУС БИОМЕХАНИКИ",
+      hipAngle: "Глубина угла: 92°",
+      kneeProtection: "Защита коленей: Активна",
+      heelPressure: "ДАВЛЕНИЕ НА ПЯТКУ",
+      heelStable: "98% Стабильно",
+      backMuscleTension: "НАПРЯЖЕНИЕ МЫШЦ СПИНЫ",
+      contraction: "Сокращение: 96%",
+      amplitude: "Амплитуда: Полная ROM",
+      wristTension: "НАПРЯЖЕНИЕ ЗАПЯСТЬЯ",
+      optimal: "Оптимально",
+      armBiomechanicsAnalysis: "АНАЛИЗ БИОМЕХАНИКИ РУКИ",
+      flexion: "Сгибание: 42° - 175°",
+      peakTension: "Пиковое напряжение: 98%",
+      elbowPosition: "ПОЛОЖЕНИЕ ЛОКТЯ",
+      elbowStable: "Фиксировано (Стабильно)",
+      aiMovementGuide: "ИИ РУКОВОДСТВО ДВИЖЕНИЯ",
+      trajectoryActive: "Траектория: Активна",
+      stanceType: "ТИП СТОЙКИ",
+      optimalAndStable: "Оптимально и стабильно",
+      videoTitle: "ИИ ВИДЕО ТЕХНИКИ",
+      videoLoopActive: "ВИДЕОПОВТОР АКТИВЕН",
+      step: "ШАГ",
+      executionRule: "Правило выполнения:",
+      pause: "ПАУЗА",
+      play: "ИГРАТЬ",
+      speedBtn: "Скорость",
+      youtubeBtn: "🎥 Смотреть правильную технику на YouTube",
+      techniqueAndIllustration: "Техника Упражнения и Иллюстрация",
+      guideSub: "Руководство по выполнению, созданное ИИ",
+      openGuide: "Открыть руководство",
+      analyzing: "ИИ анализирует механику движений...",
+      analyzingSub: "Рассчитываются наиболее безопасные и эффективные углы выполнения и правильные фазы дыхания.",
+      retryBtn: "Попробовать снова",
+      difficulty: "Сложность",
+      executionPhases: "Этапы выполнения",
+      breathing: "💨 Дыхание",
+      goldenRule: "💡 Золотое Правило",
+      aiSimulator: "ИИ СИМУЛЯТОР",
+      angleLabel: "Угол",
+      perfectBiomechanics: "Отличная биомеханика",
+      defaultError: "Произошла ошибка при загрузке ИИ руководства.",
+      otherMuscle: "Другое"
+    }
+  };
+
+  const t = translations[lang === "ru" ? "ru" : lang === "en" ? "en" : "az"];
 
   useEffect(() => {
     let interval: any;
@@ -55,13 +215,13 @@ export default function ExerciseGuideView({
       onUpdateGuide(data);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Aİ bələdçisi yüklənərkən xəta baş verdi.");
+      setError(err.message || t.defaultError);
     } finally {
       setLoading(false);
     }
   };
 
-  const muscle = exercise.guide?.muscleGroup || "Digər";
+  const muscle = exercise.guide?.muscleGroup || t.otherMuscle;
 
   // Check which muscles to highlight in our stylized SVG mannequin
   const isChest = muscle.toLowerCase().includes("sinə") || muscle.toLowerCase().includes("chest");
@@ -106,10 +266,10 @@ export default function ExerciseGuideView({
             <line x1="100" y1="45" x2="100" y2="77" stroke="#f59e0b" strokeWidth="1" strokeDasharray="3,3" opacity="0.6" />
             <circle cx="100" cy="45" r="3" fill="#f59e0b" />
           </g>
-          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">Aİ TRAKTORİYA ANALİZİ</text>
-          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">Dirsək: 75° (Təhlükəsiz)</text>
-          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">Sürət: 0.45 m/s</text>
-          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">YÜK PAYLANMASI</text>
+          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">{t.aiTrajectoryAnalysis}</text>
+          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">{t.elbowAngle}</text>
+          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">{t.speed}</text>
+          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">{t.loadDistribution}</text>
           <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">L: 50% | R: 50%</text>
         </svg>
       );
@@ -137,11 +297,11 @@ export default function ExerciseGuideView({
             <rect x="52" y="31" width="8" height="14" rx="1.5" fill="#f59e0b" />
             <rect x="140" y="31" width="8" height="14" rx="1.5" fill="#f59e0b" />
           </g>
-          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">Aİ BİOMEXANİKA DƏRƏCƏSİ</text>
-          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">Künc Dərinliyi: 92°</text>
-          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">Diz qorunması: Aktiv</text>
-          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">DABAN TƏZYİQİ</text>
-          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">98% Stabil</text>
+          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">{t.aiBiomechanicsDegree}</text>
+          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">{t.hipAngle}</text>
+          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">{t.kneeProtection}</text>
+          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">{t.heelPressure}</text>
+          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">{t.heelStable}</text>
         </svg>
       );
     } else if (name.includes("pull") || name.includes("lat") || name.includes("row") || name.includes("chin") || name.includes("deadlift")) {
@@ -167,11 +327,11 @@ export default function ExerciseGuideView({
             <line x1="92" y1="65" x2="94" y2="88" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" />
             <line x1="108" y1="65" x2="106" y2="88" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" />
           </g>
-          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">KÜRƏK ƏZƏLƏ GƏRGİNLİYİ</text>
-          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">Kontraksiya: 96%</text>
-          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">Genişlik: Tam ROM</text>
-          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">BİLƏK GƏRGİNLİYİ</text>
-          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">Optimal</text>
+          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">{t.backMuscleTension}</text>
+          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">{t.contraction}</text>
+          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">{t.amplitude}</text>
+          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">{t.wristTension}</text>
+          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">{t.optimal}</text>
         </svg>
       );
     } else if (name.includes("curl") || name.includes("bicep") || name.includes("tricep") || name.includes("pushdown") || name.includes("arm")) {
@@ -195,11 +355,11 @@ export default function ExerciseGuideView({
             <rect x="136" y="70" width="8" height="5" rx="1" fill="#f59e0b" />
             <path d="M 140,65 A 55,55 0 0,0 120,25" fill="none" stroke="#f59e0b" strokeWidth="1" strokeDasharray="2,2" opacity="0.4" />
           </g>
-          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">QOL BİOMEXANİKA ANALİZİ</text>
-          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">Bükülmə: 42° - 175°</text>
-          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">Pik gərginlik: 98%</text>
-          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">DİRSƏK VƏZİYYƏTİ</text>
-          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">Sabit (Stabil)</text>
+          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">{t.armBiomechanicsAnalysis}</text>
+          <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">{t.flexion}</text>
+          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">{t.peakTension}</text>
+          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">{t.elbowPosition}</text>
+          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">{t.elbowStable}</text>
         </svg>
       );
     } else {
@@ -230,11 +390,11 @@ export default function ExerciseGuideView({
             <path d="M 85,75 L 85,70 M 85,75 L 90,75" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
             <path d="M 115,75 L 115,70 M 115,75 L 110,75" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
           </g>
-          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">Aİ HƏRƏKƏT BƏLƏDÇİSİ</text>
+          <text x="12" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold tracking-widest uppercase">{t.aiMovementGuide}</text>
           <text x="12" y="26" fill="#f59e0b" className="text-[8px] font-mono font-black uppercase tracking-wide">{exercise.name}</text>
-          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">Trayektoriya: Aktiv</text>
-          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">DURUŞ NÖVÜ</text>
-          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">Optimal & Stabil</text>
+          <text x="12" y="36" fill="#10b981" className="text-[7px] font-mono font-bold uppercase tracking-wide">{t.trajectoryActive}</text>
+          <text x="188" y="16" fill="#6b7280" className="text-[7px] font-mono font-bold uppercase tracking-widest text-right" textAnchor="end">{t.stanceType}</text>
+          <text x="188" y="26" fill="#10b981" className="text-[8px] font-mono font-black uppercase tracking-wide text-right" textAnchor="end">{t.optimalAndStable}</text>
         </svg>
       );
     }
@@ -254,7 +414,7 @@ export default function ExerciseGuideView({
         <div className="relative aspect-video w-full bg-[#141519] rounded-lg overflow-hidden border border-[#2a2d34]/40 flex flex-col justify-between p-3">
           <div className="flex justify-between items-center z-10">
             <span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest bg-black/60 px-2 py-0.5 rounded-full border border-amber-500/20">
-              Aİ TEXNİKA VİDEOSU
+              {t.videoTitle}
             </span>
             <span className="text-[8px] font-mono text-gray-400 bg-black/50 px-1.5 py-0.5 rounded">
               HD 1080P
@@ -265,16 +425,16 @@ export default function ExerciseGuideView({
             <div className="w-32 h-32 rounded-full bg-amber-500/10 blur-xl animate-pulse" />
             <div className="text-center">
               <Dumbbell className="w-8 h-8 text-amber-500/50 mx-auto animate-bounce mb-1" />
-              <div className="text-[9px] font-bold text-gray-500 font-mono">VIDEO LOOP ACTIVE</div>
+              <div className="text-[9px] font-bold text-gray-500 font-mono">{t.videoLoopActive}</div>
             </div>
           </div>
 
           <div className="bg-black/85 backdrop-blur-md border border-[#2a2d34]/60 p-2 rounded-xl z-10 max-w-full">
             <div className="flex items-center gap-1.5">
               <span className="text-[8px] font-black text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded">
-                ADDIM {currentStepIdx + 1}
+                {t.step} {currentStepIdx + 1}
               </span>
-              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">İcra qaydası:</span>
+              <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{t.executionRule}</span>
             </div>
             <p className="text-[10px] text-white font-medium mt-1 leading-normal line-clamp-2">
               {activeStepText}
@@ -306,12 +466,12 @@ export default function ExerciseGuideView({
                   {isPlaying ? (
                     <>
                       <Pause className="w-3 h-3 fill-white" />
-                      <span className="text-[9px] font-extrabold uppercase">PAUSE</span>
+                      <span className="text-[9px] font-extrabold uppercase">{t.pause}</span>
                     </>
                   ) : (
                     <>
                       <Play className="w-3 h-3 fill-white" />
-                      <span className="text-[9px] font-extrabold uppercase">PLAY</span>
+                      <span className="text-[9px] font-extrabold uppercase">{t.play}</span>
                     </>
                   )}
                 </button>
@@ -325,7 +485,7 @@ export default function ExerciseGuideView({
                   onClick={() => setVideoSpeed(prev => prev === 0.5 ? 1 : prev === 1 ? 1.5 : 0.5)}
                   className="text-[9px] font-mono font-black text-gray-400 hover:text-white bg-[#1b1d22] hover:bg-[#22242b] border border-[#2a2d34] px-1.5 py-0.5 rounded cursor-pointer"
                 >
-                  {videoSpeed}x Sürət
+                  {videoSpeed}x {t.speedBtn}
                 </button>
               </div>
             </div>
@@ -338,7 +498,7 @@ export default function ExerciseGuideView({
           rel="noopener noreferrer"
           className="w-full py-2 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 hover:border-red-600/60 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
         >
-          <span>🎥 YouTube-da Düzgün Texnikanı İzlə</span>
+          <span>{t.youtubeBtn}</span>
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>
@@ -354,8 +514,8 @@ export default function ExerciseGuideView({
             ✨
           </div>
           <div className="text-left">
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider">Məşq Texnikası & İllüstrasiya</h4>
-            <p className="text-[10px] text-gray-500 mt-0.5">Aİ tərəfindən hazırlanmış icra qaydası</p>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t.techniqueAndIllustration}</h4>
+            <p className="text-[10px] text-gray-500 mt-0.5">{t.guideSub}</p>
           </div>
         </div>
 
@@ -364,7 +524,7 @@ export default function ExerciseGuideView({
             onClick={fetchGuide}
             className="py-1 px-3 bg-amber-500/10 hover:bg-amber-500 text-amber-500 hover:text-gray-950 border border-amber-500/30 hover:border-amber-500 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer"
           >
-            <Sparkles className="w-3 h-3" /> Bələdçini Aç
+            <Sparkles className="w-3 h-3" /> {t.openGuide}
           </button>
         )}
       </div>
@@ -373,10 +533,10 @@ export default function ExerciseGuideView({
         <div className="py-8 text-center space-y-3 animate-pulse">
           <div className="w-8 h-8 rounded-full border-2 border-amber-500/25 border-t-amber-500 animate-spin mx-auto" />
           <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-            Aİ hərəkət mexanikasını analiz edir...
+            {t.analyzing}
           </div>
           <p className="text-[9px] text-gray-500 max-w-[250px] mx-auto leading-relaxed">
-            Hərəkətin ən təhlükəsiz və effektiv icra bucaqları, düzgün tənəffüs fazaları hesablanır.
+            {t.analyzingSub}
           </p>
         </div>
       )}
@@ -388,7 +548,7 @@ export default function ExerciseGuideView({
             onClick={fetchGuide}
             className="text-[10px] uppercase tracking-wider font-extrabold text-amber-500 hover:underline"
           >
-            Yenidən Cəhd Et
+            {t.retryBtn}
           </button>
         </div>
       )}
@@ -408,7 +568,7 @@ export default function ExerciseGuideView({
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                🤖 Aİ Simulyasiya
+                {t.tabSimulator}
               </button>
               <button
                 onClick={() => setActiveGuideTab("video")}
@@ -418,7 +578,7 @@ export default function ExerciseGuideView({
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                🎥 Video Təlimat
+                {t.tabVideo}
               </button>
               <button
                 onClick={() => setActiveGuideTab("muscles")}
@@ -428,7 +588,7 @@ export default function ExerciseGuideView({
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                👤 Əzələ Fokusu
+                {t.tabMuscles}
               </button>
             </div>
 
@@ -442,7 +602,7 @@ export default function ExerciseGuideView({
 
                   <div className="absolute top-2 right-2 flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                    <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider">Aİ SİMULYATORU</span>
+                    <span className="text-[8px] font-bold text-emerald-400 uppercase tracking-wider">{t.aiSimulator}</span>
                   </div>
 
                   <div className="w-full flex items-center justify-center py-2 min-h-[140px]">
@@ -451,7 +611,7 @@ export default function ExerciseGuideView({
 
                   <span className="text-[8px] text-gray-500 font-bold mt-2 font-mono uppercase tracking-widest flex items-center gap-1">
                     <Activity className="w-3 h-3 text-amber-500 animate-pulse" />
-                    Bucağı: <span className="text-amber-500">Mükəmməl biomexanika</span>
+                    {t.angleLabel}: <span className="text-amber-500">{t.perfectBiomechanics}</span>
                   </span>
                 </div>
               </div>
@@ -467,7 +627,7 @@ export default function ExerciseGuideView({
 
                 <div className="absolute top-2 right-2 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                  <span className="text-[8px] font-bold text-amber-500 uppercase tracking-wider">Əzələ Fokusu</span>
+                  <span className="text-[8px] font-bold text-amber-500 uppercase tracking-wider">{t.tabMuscles}</span>
                 </div>
 
                 {/* Stylized Futuristic Muscular System SVG */}
@@ -594,7 +754,7 @@ export default function ExerciseGuideView({
 
                 <span className="text-[9px] text-gray-500 font-bold mt-2 font-mono uppercase tracking-widest flex items-center gap-1">
                   <Activity className="w-3 h-3 text-amber-500" />
-                  Çətinlik: <span className="text-amber-500">{exercise.guide.difficulty}</span>
+                  {t.difficulty}: <span className="text-amber-500">{exercise.guide.difficulty}</span>
                 </span>
               </div>
             )}
@@ -605,7 +765,7 @@ export default function ExerciseGuideView({
             {/* Step-by-Step execution */}
             <div className="space-y-2">
               <span className="text-[10px] text-amber-500 font-extrabold uppercase tracking-widest block mb-1">
-                İcra mərhələləri
+                {t.executionPhases}
               </span>
               <div className="space-y-2 bg-[#1b1d22]/50 border border-[#2a2d34]/40 rounded-xl p-3">
                 {exercise.guide.steps.map((step, sIdx) => (
@@ -626,7 +786,7 @@ export default function ExerciseGuideView({
               {/* Breathing */}
               <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 space-y-1">
                 <span className="text-[8px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1">
-                  💨 Nəfəs Alıb-Vermə
+                  {t.breathing}
                 </span>
                 <p className="text-[11px] text-gray-300 leading-relaxed">
                   {exercise.guide.breathing}
@@ -636,7 +796,7 @@ export default function ExerciseGuideView({
               {/* Pro Tip */}
               <div className="bg-emerald-500/5 border border-emerald-500/10 rounded-xl p-3 space-y-1">
                 <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1">
-                  💡 Qızıl Qayda
+                  {t.goldenRule}
                 </span>
                 <p className="text-[11px] text-gray-300 leading-relaxed">
                   {exercise.guide.tip}

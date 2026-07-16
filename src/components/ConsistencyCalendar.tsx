@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { WorkoutLogs } from "../types";
-import { Calendar, Award, Flame, Dumbbell, Trophy, TrendingUp, CheckCircle2, ChevronRight, Activity, CalendarDays } from "lucide-react";
+import { WorkoutLogs, WorkoutDay } from "../types";
+import { Calendar, Award, Flame, Dumbbell, Trophy, TrendingUp, CheckCircle2, ChevronRight, Activity, CalendarDays, X, Sparkles } from "lucide-react";
 
 interface ConsistencyCalendarProps {
   logs: WorkoutLogs;
+  program?: WorkoutDay[];
 }
 
 interface DayData {
@@ -19,7 +20,7 @@ interface DayData {
   isActive: boolean;
 }
 
-export default function ConsistencyCalendar({ logs }: ConsistencyCalendarProps) {
+export default function ConsistencyCalendar({ logs, program = [] }: ConsistencyCalendarProps) {
   // Generate last 30 days data
   const daysData: DayData[] = [];
   const today = new Date();
@@ -81,6 +82,39 @@ export default function ConsistencyCalendar({ logs }: ConsistencyCalendarProps) 
   // Selected day for detailed view (defaults to today / last day)
   const [selectedDate, setSelectedDate] = useState<string>(daysData[daysData.length - 1].date);
   const selectedDay = daysData.find((d) => d.date === selectedDate) || daysData[daysData.length - 1];
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Map exercise ID to details (name, isTime) from current program
+  const idToExInfo: { [id: string]: { name: string; isTime: boolean } } = {};
+  program?.forEach((day) => {
+    day.exercises.forEach((ex) => {
+      idToExInfo[ex.id] = { name: ex.name, isTime: !!ex.isTime };
+    });
+  });
+
+  // Fetch detailed logged exercises for a specific date
+  const getLoggedExercisesForDate = (dateStr: string) => {
+    const matches = Object.entries(logs).filter(([key]) => key.endsWith(`|${dateStr}`));
+    const list: Array<{ name: string; isTime: boolean; sets: any[] }> = [];
+    matches.forEach(([key, dayLog]) => {
+      Object.entries(dayLog).forEach(([id, setsArr]) => {
+        if (!id.startsWith("__") && Array.isArray(setsArr)) {
+          const info = idToExInfo[id];
+          const name = info ? info.name : `Hərəkət (${id})`;
+          const isTime = info ? info.isTime : false;
+          const completedSets = setsArr.filter((s) => s && s.done);
+          if (completedSets.length > 0) {
+            list.push({
+              name,
+              isTime,
+              sets: completedSets,
+            });
+          }
+        }
+      });
+    });
+    return list;
+  };
 
   // Consistency Statistics
   const activeDaysCount = daysData.filter((d) => d.isActive).length;
@@ -265,7 +299,10 @@ export default function ConsistencyCalendar({ logs }: ConsistencyCalendarProps) 
               <button
                 id={`heatmap-cell-${day.date}`}
                 key={day.date}
-                onClick={() => setSelectedDate(day.date)}
+                onClick={() => {
+                  setSelectedDate(day.date);
+                  setIsModalOpen(true);
+                }}
                 className={`aspect-square rounded-xl border flex flex-col items-center justify-center p-1 transition-all duration-200 cursor-pointer text-center relative ${getHeatmapColorClass(day, isSelected)}`}
               >
                 {/* Day number */}
@@ -406,6 +443,136 @@ export default function ConsistencyCalendar({ logs }: ConsistencyCalendarProps) 
           </p>
         </div>
       </div>
+
+      {/* Detailed Summary Modal */}
+      {isModalOpen && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setIsModalOpen(false)}
+          id="consistency-modal-overlay"
+        >
+          <div 
+            className="bg-[#1b1d22] border border-[#2a2d34] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative text-left"
+            onClick={(e) => e.stopPropagation()}
+            id="consistency-modal-content"
+          >
+            {/* Header */}
+            <div className="flex justify-between items-start border-b border-[#2a2d34]/40 pb-3">
+              <div className="space-y-0.5">
+                <span className="text-[9px] text-amber-500 font-extrabold uppercase tracking-widest font-mono">
+                  Günün Məşq Hesabatı
+                </span>
+                <h3 className="text-base font-black text-white italic uppercase tracking-tight">
+                  {selectedDay.dayOfWeek}, {selectedDay.dayLabel}
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 hover:bg-[#252830] rounded-xl text-gray-400 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+              {selectedDay.isActive ? (
+                <div className="space-y-4">
+                  {/* General Stats in Modal */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="bg-[#141519]/80 border border-[#2a2d34]/60 p-3 rounded-2xl text-center">
+                      <span className="text-[8px] text-gray-400 uppercase font-extrabold tracking-wider font-mono block">Toplam Set</span>
+                      <span className="text-sm font-black text-white">{selectedDay.totalSets} set ✓</span>
+                    </div>
+                    <div className="bg-[#141519]/80 border border-[#2a2d34]/60 p-3 rounded-2xl text-center">
+                      <span className="text-[8px] text-gray-400 uppercase font-extrabold tracking-wider font-mono block">Maks. Çəki</span>
+                      <span className="text-sm font-black text-amber-500">
+                        {selectedDay.maxWeight > 0 ? `${selectedDay.maxWeight} kq` : "—"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Exercises List */}
+                  <div className="space-y-2.5">
+                    <span className="text-[9px] text-gray-400 font-extrabold uppercase tracking-widest font-mono block">Tamamlanan Hərəkətlər</span>
+                    {getLoggedExercisesForDate(selectedDay.date).length === 0 ? (
+                      <p className="text-xs text-gray-400 italic py-2.5 text-center bg-[#141519]/40 rounded-xl border border-[#2a2d34]/40">
+                        Hərəkət qeydi yoxdur (yalnız kardio).
+                      </p>
+                    ) : (
+                      getLoggedExercisesForDate(selectedDay.date).map((ex, exIdx) => (
+                        <div 
+                          key={exIdx} 
+                          className="bg-[#141519]/60 border border-[#2a2d34]/40 p-3.5 rounded-2xl space-y-2.5"
+                        >
+                          <span className="text-xs font-bold text-white uppercase tracking-wider block">
+                            🏋️‍♂️ {ex.name}
+                          </span>
+                          
+                          {/* Sets list */}
+                          <div className="grid grid-cols-3 gap-2">
+                            {ex.sets.map((set, sIdx) => (
+                              <div 
+                                key={sIdx} 
+                                className="bg-[#181a20]/80 border border-[#2a2d34]/50 p-2 rounded-xl text-center font-mono"
+                              >
+                                <span className="text-[8px] text-gray-500 font-bold uppercase block">Set {sIdx + 1}</span>
+                                <span className="text-[11px] text-gray-200 font-bold block mt-0.5">
+                                  {ex.isTime ? `${set.r} san` : `${set.w} kq`}
+                                </span>
+                                {!ex.isTime && (
+                                  <span className="text-[9px] text-gray-400 block font-normal">
+                                    {set.r} təkrar
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Cardio completed check */}
+                  {selectedDay.hasCardio && (
+                    <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-3.5 flex gap-3 items-center">
+                      <span className="text-xl shrink-0">🏃</span>
+                      <div className="space-y-0.5 text-left">
+                        <span className="text-xs font-bold text-blue-400 block">Kardio Fəaliyyəti ✓</span>
+                        <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
+                          Bu gün ürək-damar fəallığını nizamlı tamamlayaraq dözümlülük və sağlamlıq tempini artırdınız.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3.5 py-4 text-center">
+                  <div className="w-12 h-12 rounded-full bg-[#141519]/80 border border-[#2a2d34]/60 text-2xl flex items-center justify-center mx-auto shadow-md">
+                    🧘‍♀️
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-white">İstirahət və Bərpa Günü</h4>
+                    <p className="text-xs text-gray-400 leading-relaxed max-w-xs mx-auto">
+                      Əzələləriniz məşq zamanı deyil, məhz bu gün istirahət vaxtı bərpa və inkişaf edir. Bol su için və bədəninizi növbəti məşq gününə tam hazırlayın!
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-[#2a2d34]/40 pt-3 flex justify-end">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-gray-950 font-black text-xs uppercase rounded-xl cursor-pointer transition-all shadow-md"
+              >
+                Bağla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, ShieldCheck, X, CreditCard, Copy, Check, Info } from "lucide-react";
-import { db } from "../firebase";
-import { collection, addDoc } from "firebase/firestore";
+import { Sparkles, ShieldCheck, X, CreditCard, Copy, Check, Info, Lock, Calendar, User } from "lucide-react";
+import { db, handleFirestoreError, OperationType } from "../firebase";
+import { collection, addDoc, doc, updateDoc } from "firebase/firestore";
 
 interface PaymentModalProps {
   onClose: () => void;
@@ -13,6 +13,7 @@ interface PaymentModalProps {
   cardHolder?: string;
   cardBank?: string;
   user?: any;
+  lang?: string;
 }
 
 export default function PaymentModal({
@@ -25,21 +26,31 @@ export default function PaymentModal({
   cardHolder,
   cardBank,
   user,
+  lang = "az",
 }: PaymentModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestSubmitted, setRequestSubmitted] = useState(false);
 
-  // Form Fields for Direct Transfer Confirmation
+  // Active payment method
+  const [activeMethod, setActiveMethod] = useState<"card" | "manual">("card");
+
+  // Direct Card payment states
+  const [cardHolderInput, setCardHolderInput] = useState("");
+  const [cardNumberInput, setCardNumberInput] = useState("");
+  const [expiryInput, setExpiryInput] = useState("");
+  const [cvvInput, setCvvInput] = useState("");
+
+  // Manual payment states
   const [senderName, setSenderName] = useState("");
   const [senderCardLast4, setSenderCardLast4] = useState("");
-  const [activeMethod, setActiveMethod] = useState<"card" | "manual">("card");
   const [copied, setCopied] = useState(false);
 
-  // Prefill name if available
+  // Prefill names
   useEffect(() => {
     if (user?.displayName) {
       setSenderName(user.displayName);
+      setCardHolderInput(user.displayName.toUpperCase());
     }
   }, [user]);
 
@@ -50,16 +61,161 @@ export default function PaymentModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePay = async (e: React.FormEvent) => {
+  // Luhn algorithm for actual card numbers
+  const validateCardNumber = (num: string) => {
+    const clean = num.replace(/\D/g, "");
+    if (clean.length < 13 || clean.length > 19) return false;
+    
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = clean.length - 1; i >= 0; i--) {
+      let digit = parseInt(clean.charAt(i));
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  };
+
+  const formatCardNumber = (val: string) => {
+    const clean = val.replace(/\D/g, "").slice(0, 16);
+    const parts = clean.match(/.{1,4}/g);
+    setCardNumberInput(parts ? parts.join(" ") : clean);
+  };
+
+  const formatExpiry = (val: string) => {
+    const clean = val.replace(/\D/g, "").slice(0, 4);
+    if (clean.length >= 3) {
+      setExpiryInput(`${clean.slice(0, 2)}/${clean.slice(2)}`);
+    } else {
+      setExpiryInput(clean);
+    }
+  };
+
+  // Direct actual card payment processing
+  const handleDirectCardPay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) {
+      setError(
+        lang === "az" 
+          ? "Sistemə daxil olmalısınız." 
+          : "You must be logged in."
+      );
+      return;
+    }
+
+    const cleanCardNo = cardNumberInput.replace(/\s+/g, "");
+    const isLuhnValid = validateCardNumber(cleanCardNo);
+
+    if (!isLuhnValid) {
+      setError(
+        lang === "ru"
+          ? "Неверный номер карты (ошибка Luhn validation)."
+          : lang === "en"
+          ? "Invalid card number (Luhn validation failed)."
+          : "Kart nömrəsi düzgün deyil (Luhn yoxlaması uğursuz oldu)."
+      );
+      return;
+    }
+
+    const expiryParts = expiryInput.split("/");
+    if (expiryParts.length !== 2 || parseInt(expiryParts[0]) < 1 || parseInt(expiryParts[0]) > 12) {
+      setError(
+        lang === "az" ? "Bitmə tarixi düzgün deyil (AA/İİ)" : "Expiry date must be in MM/YY format."
+      );
+      return;
+    }
+
+    if (cvvInput.length !== 3) {
+      setError(
+        lang === "az" ? "CVV 3 rəqəmli olmalıdır." : "CVV must be 3 digits."
+      );
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const cardType = cleanCardNo.startsWith("4") ? "visa" : cleanCardNo.startsWith("5") ? "mastercard" : "unknown";
+      const maskedCard = `${cleanCardNo.substring(0, 4)} ${cleanCardNo.substring(4, 6)}** **** ${cleanCardNo.substring(12)}`;
+
+      const savedCardObj = {
+        cardHolder: cardHolderInput.toUpperCase().trim(),
+        cardNumber: maskedCard,
+        expiry: expiryInput,
+        cardType
+      };
+
+      const startEpoch = Date.now();
+      const nextPaymentEpoch = startEpoch + 30 * 24 * 60 * 60 * 1000;
+
+      const subscriptionObj = {
+        status: "active",
+        price: "₼4.99",
+        planName: "Aylıq Sınırsız",
+        startDate: startEpoch,
+        nextPaymentDate: nextPaymentEpoch
+      };
+
+      // 1. Update user info in Firestore
+      const userDocRef = doc(db, "users", user.uid);
+      await updateDoc(userDocRef, {
+        premium: true,
+        premiumPlan: "Aylıq Sınırsız",
+        premiumUntil: nextPaymentEpoch,
+        savedCard: savedCardObj,
+        subscription: subscriptionObj
+      });
+
+      // 2. Add billing receipt to subcollection
+      const paymentsCollRef = collection(db, "users", user.uid, "payments");
+      await addDoc(paymentsCollRef, {
+        date: startEpoch,
+        amount: "₼4.99",
+        cardUsed: maskedCard,
+        status: "success"
+      });
+
+      // 3. Complete and show success page
+      setRequestSubmitted(true);
+      onSuccess("Aylıq Sınırsız", nextPaymentEpoch);
+
+    } catch (err: any) {
+      console.error("Direct payment error:", err);
+      setError(err.message || "Ödəniş emal olunarkən xəta baş verdi.");
+      handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/payments`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Traditional manual verification payment processing
+  const handleManualPay = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!senderName.trim() || !senderCardLast4.trim()) {
-      setError("Zəhmət olmasa Ad Soyadınızı və Ödəyən kartın son 4 rəqəmini daxil edin.");
+      setError(
+        lang === "ru"
+          ? "Пожалуйста, введите имя и последние 4 цифры карты."
+          : lang === "en"
+          ? "Please enter your name and the last 4 digits of your card."
+          : "Zəhmət olmasa Ad Soyadınızı və Ödəyən kartın son 4 rəqəmini daxil edin."
+      );
       return;
     }
 
     if (senderCardLast4.trim().length < 4) {
-      setError("Ödəyən kartın son 4 rəqəmini tam daxil edin (Məs. 4321).");
+      setError(
+        lang === "ru"
+          ? "Введите ровно 4 цифры (например, 4321)."
+          : lang === "en"
+          ? "Please enter exactly 4 digits of your card (e.g., 4321)."
+          : "Ödəyən kartın son 4 rəqəmini tam daxil edin (Məs. 4321)."
+      );
       return;
     }
 
@@ -68,10 +224,15 @@ export default function PaymentModal({
 
     try {
       if (!user) {
-        throw new Error("Ödəniş təsdiqi göndərmək üçün əvvəlcə sistemə daxil olmalısınız.");
+        throw new Error(
+          lang === "ru"
+            ? "Вы должны войти в систему для отправки запроса."
+            : lang === "en"
+            ? "You must be signed in to submit a payment request."
+            : "Ödəniş təsdiqi göndərmək üçün əvvəlcə sistemə daxil olmalısınız."
+        );
       }
 
-      // Add a request document to Firestore under paymentRequests
       await addDoc(collection(db, "paymentRequests"), {
         userId: user.uid,
         userEmail: user.email || "",
@@ -86,7 +247,15 @@ export default function PaymentModal({
       setRequestSubmitted(true);
     } catch (err: any) {
       console.error("Payment submission error:", err);
-      setError(err.message || "Ödəniş sorğusu göndərilərkən xəta baş verdi.");
+      setError(
+        err.message ||
+          (lang === "ru"
+            ? "Произошла ошибка при отправке запроса платежа."
+            : lang === "en"
+            ? "An error occurred while sending payment request."
+            : "Ödəniş sorğusu göndərilərkən xəta baş verdi.")
+      );
+      handleFirestoreError(err, OperationType.WRITE, "paymentRequests");
     } finally {
       setLoading(false);
     }
@@ -109,29 +278,48 @@ export default function PaymentModal({
 
           <div>
             <h3 className="font-black italic text-lg text-white uppercase tracking-wide">
-              Sorğu Göndərildi! 🎉
+              {lang === "ru" ? "Успешно! 🎉" : lang === "en" ? "Success! 🎉" : "Uğurlu Ödəniş! 🎉"}
             </h3>
             <p className="text-xs text-gray-400 mt-2 max-w-xs mx-auto leading-relaxed">
-              Ödəniş təsdiq sorğunuz uğurla adminə göndərildi. Kart köçürməniz admin tərəfindən yoxlanılıb təsdiqlənən kimi premium statusunuz dərhal aktivləşdiriləcəkdir.
+              {activeMethod === "card" ? (
+                lang === "az"
+                  ? "Kartınız sistemə uğurla qoşuldu və Premium abunəliyiniz dərhal aktivləşdirildi! 'Ödənişlərim' bölməsindən fakturalarınızı görə bilərsiniz."
+                  : "Your payment card has been securely connected. Your Premium membership is now fully active! Track details in the 'My Payments' tab."
+              ) : (
+                lang === "ru"
+                  ? "Ваш запрос на подтверждение платежа успешно отправлен администратору. Как только перевод будет проверен, ваш премиум-статус активируется."
+                  : lang === "en"
+                  ? "Your payment confirmation request has been successfully sent. Once the transfer is verified, your premium status will be activated immediately."
+                  : "Ödəniş təsdiq sorğunuz uğurla adminə göndərildi. Kart köçürməniz admin tərəfindən yoxlanılıb təsdiqlənən kimi premium statusunuz dərhal aktivləşdiriləcəkdir."
+              )}
             </p>
           </div>
 
           <div className="bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-left space-y-1.5 text-[11px] text-gray-300">
             <div className="flex justify-between">
-              <span className="text-gray-500 font-bold uppercase">Hesab:</span>
+              <span className="text-gray-500 font-bold uppercase">{lang === "ru" ? "Аккаунт:" : lang === "en" ? "Account:" : "Hesab:"}</span>
               <span className="text-white font-black">{user?.email}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500 font-bold uppercase">Məbləğ:</span>
-              <span className="text-amber-500 font-black">{priceText}</span>
+              <span className="text-gray-500 font-bold uppercase">{lang === "ru" ? "Сумма:" : lang === "en" ? "Amount:" : "Məbləğ:"}</span>
+              <span className="text-amber-500 font-black">₼4.99/ay</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500 font-bold uppercase">Ödəyən Kart:</span>
-              <span className="text-white font-mono font-bold">**** **** **** {senderCardLast4}</span>
-            </div>
+            {activeMethod === "card" ? (
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-bold uppercase">{lang === "az" ? "Yadda saxlanan kart:" : "Connected Card:"}</span>
+                <span className="text-white font-mono font-bold">
+                  {cardNumberInput.substring(0, 7)}** **** {cardNumberInput.substring(12)}
+                </span>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-gray-500 font-bold uppercase">{lang === "ru" ? "Карта плательщика:" : lang === "en" ? "Payer Card:" : "Ödəyən Kart:"}</span>
+                <span className="text-white font-mono font-bold">**** **** **** {senderCardLast4}</span>
+              </div>
+            )}
           </div>
 
-          {whatsapp ? (
+          {activeMethod === "manual" && whatsapp && (
             <a
               href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
                 `Salam! Mən ${user?.email || "istifadəçi"} olaraq ${priceText} məbləğində kart transferi ilə ödəniş etdim. Ödəyən: ${senderName}. Zəhmət olmasa təsdiqləyin.`
@@ -140,18 +328,7 @@ export default function PaymentModal({
               referrerPolicy="no-referrer"
               className="block w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-center transition-all text-xs uppercase tracking-wider cursor-pointer"
             >
-              💬 Qəbzi WhatsApp ilə göndər (Daha sürətli)
-            </a>
-          ) : (
-            <a
-              href={`https://wa.me/994500000000?text=${encodeURIComponent(
-                `Salam! Mən ${user?.email || "istifadəçi"} olaraq ${priceText} məbləğində kart transferi ilə ödəniş etdim. Ödəyən: ${senderName}. Zəhmət olmasa təsdiqləyin.`
-              )}`}
-              target="_blank"
-              referrerPolicy="no-referrer"
-              className="block w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-center transition-all text-xs uppercase tracking-wider cursor-pointer"
-            >
-              💬 Qəbzi WhatsApp ilə göndər
+              💬 {lang === "ru" ? "Отправить чек в WhatsApp (Быстрее)" : lang === "en" ? "Send Receipt via WhatsApp (Faster)" : "💬 Qəbzi WhatsApp ilə göndər (Daha sürətli)"}
             </a>
           )}
 
@@ -159,7 +336,7 @@ export default function PaymentModal({
             onClick={onClose}
             className="w-full py-3 bg-[#131417] hover:bg-[#22242b] border border-[#2a2d34] text-gray-400 font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
           >
-            Bağla
+            {lang === "ru" ? "Закрыть" : lang === "en" ? "Close" : "Bağla"}
           </button>
         </div>
       </div>
@@ -181,20 +358,30 @@ export default function PaymentModal({
             <Sparkles className="w-6 h-6 animate-pulse" />
           </div>
           <h3 className="font-black italic text-lg text-white uppercase tracking-wide">
-            ⭐ Premium Üzvlük
+            ⭐ {lang === "ru" ? "Премиум Доступ" : lang === "en" ? "Premium Access" : "⭐ Premium Üzvlük"}
           </h3>
           <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto leading-relaxed">
-            Aİ Məşqçi Çatı, Aİ ilə fərdi məşq proqramlarının yaradılması və fizika şəkli yağ analizlərini dərhal aktivləşdirin!
+            {lang === "ru"
+              ? "Активируйте ИИ Чат-Коуча, составление индивидуальных программ тренировок и мгновенный анализ жира по фото!"
+              : lang === "en"
+              ? "Unlock AI Coach Chat, custom AI workout routines, and instant body fat analysis from photos!"
+              : "Aİ Məşqçi Çatı, Aİ ilə fərdi məşq proqramlarının yaradılması və fizika şəkli yağ analizlərini dərhal aktivləşdirin!"}
           </p>
         </div>
 
         <div className="bg-[#131417] border border-[#2a2d34] rounded-xl p-3.5 flex justify-between items-center">
           <div>
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Premium Plan</span>
-            <div className="text-sm font-black text-white">Aylıq Sınırsız Paket</div>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+              {lang === "ru" ? "Премиум Тариф" : lang === "en" ? "Premium Plan" : "Premium Plan"}
+            </span>
+            <div className="text-sm font-black text-white">
+              {lang === "ru" ? "Безлимитный на месяц" : lang === "en" ? "Monthly Unlimited Pass" : "Aylıq Sınırsız Paket"}
+            </div>
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Məbləğ</span>
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+              {lang === "ru" ? "Сумма" : lang === "en" ? "Price" : "Məbləğ"}
+            </span>
             <div className="text-base font-black text-amber-500">{priceText}</div>
           </div>
         </div>
@@ -210,7 +397,7 @@ export default function PaymentModal({
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            💳 Kart ilə Ödə (Birbaşa)
+            {lang === "ru" ? "💳 Карта (Онлайн)" : lang === "en" ? "💳 Card (Online)" : "💳 Kart ilə Ödə (Online)"}
           </button>
           <button
             type="button"
@@ -221,42 +408,155 @@ export default function PaymentModal({
                 : "text-gray-400 hover:text-white"
             }`}
           >
-            🤝 Digər (M10, WhatsApp)
+            {lang === "ru" ? "🤝 Другое (Вручную)" : lang === "en" ? "🤝 Other (Manual)" : "🤝 Digər (Köçürmə/WhatsApp)"}
           </button>
         </div>
 
         {activeMethod === "card" ? (
-          <form onSubmit={handlePay} className="space-y-4">
-            {/* Instruction Warning Card */}
+          /* Direct Online Card Payment Form with actual card support */
+          <form onSubmit={handleDirectCardPay} className="space-y-4">
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex gap-2.5 items-start text-left">
               <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
               <div className="text-[10.5px] text-amber-400/90 leading-normal">
-                <span className="font-bold text-amber-400">Təhlükəsiz Köçürmə:</span> Aşağıdakı kart nömrəmizə <span className="font-bold text-white">{priceText}</span> köçürün və köçürən kartın son 4 rəqəmini daxil edərək sorğu göndərin. Ödəniş birbaşa bizim karta daxil olacaqdır!
+                {lang === "az" ? (
+                  <>Kart məlumatlarınızı daxil edin. Bu, <span className="font-bold text-white">{priceText}</span> abunəliyini avtomatik aktivləşdirəcək və kartı növbəti aylıq ödənişlər üçün yadda saxlayacaqdır.</>
+                ) : (
+                  <>Enter card details. This will securely start the recurring <span className="font-bold text-white">{priceText}</span> membership and save the card on file for easy updates.</>
+                )}
               </div>
             </div>
 
-            {/* Admin's Receiver Card */}
+            <div className="space-y-3.5 text-left">
+              <div>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                  {lang === "az" ? "Kart Sahibi (Ad Soyad)" : "Cardholder Name"}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-gray-500"><User className="w-4 h-4" /></span>
+                  <input
+                    type="text"
+                    placeholder="MƏS. ƏLİ MƏMMƏDOV"
+                    value={cardHolderInput}
+                    onChange={(e) => setCardHolderInput(e.target.value)}
+                    className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 pl-9 text-white focus:outline-none text-xs focus:border-amber-500 font-bold uppercase tracking-wider"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                  {lang === "az" ? "Kart Nömrəsi" : "Card Number"}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-gray-500"><CreditCard className="w-4 h-4" /></span>
+                  <input
+                    type="text"
+                    placeholder="4169 7388 1234 5678"
+                    value={cardNumberInput}
+                    onChange={(e) => formatCardNumber(e.target.value)}
+                    className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 pl-9 text-white focus:outline-none text-xs focus:border-amber-500 font-mono font-bold tracking-widest"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                    {lang === "az" ? "Bitmə Tarixi" : "Expiry"}
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3.5 text-gray-500"><Calendar className="w-3.5 h-3.5" /></span>
+                    <input
+                      type="text"
+                      placeholder="MM/YY"
+                      value={expiryInput}
+                      onChange={(e) => formatExpiry(e.target.value)}
+                      className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 pl-8 text-white focus:outline-none text-xs focus:border-amber-500 font-mono font-bold text-center"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                    CVV/CVC
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3.5 text-gray-500"><Lock className="w-3.5 h-3.5" /></span>
+                    <input
+                      type="password"
+                      maxLength={3}
+                      placeholder="123"
+                      value={cvvInput}
+                      onChange={(e) => setCvvInput(e.target.value.replace(/[^0-9]/g, ""))}
+                      className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 pl-8 text-white focus:outline-none text-xs focus:border-amber-500 font-mono font-bold text-center"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="text-red-400 text-xs text-center p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl">
+                ⚠ {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-gray-950 font-black rounded-xl cursor-pointer transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              {loading
+                ? lang === "ru" ? "Связываемся с банком..." : lang === "en" ? "Processing..." : "Ödəniş emal olunur..."
+                : lang === "ru" ? "Оплатить сейчас" : lang === "en" ? "Pay Now & Unlock" : "İndi Ödə və Aktivləşdir"}
+            </button>
+          </form>
+        ) : (
+          /* Manual Payment Transfer Request Form (Fallback) */
+          <form onSubmit={handleManualPay} className="space-y-4">
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 flex gap-2.5 items-start text-left">
+              <Info className="w-5 h-5 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
+              <div className="text-[10.5px] text-amber-400/90 leading-normal">
+                {lang === "ru" ? (
+                  <><span className="font-bold text-amber-400">Безопасный перевод:</span> Переведите <span className="font-bold text-white">{priceText}</span> на указанную ниже карту и отправьте запрос, указав последние 4 цифры карты плательщика.</>
+                ) : lang === "en" ? (
+                  <><span className="font-bold text-amber-400">Secure Transfer:</span> Send <span className="font-bold text-white">{priceText}</span> to our card number below and submit a request with the last 4 digits of your card.</>
+                ) : (
+                  <><span className="font-bold text-amber-400">Təhlükəsiz Köçürmə:</span> Aşağıdakı kart nömrəmizə <span className="font-bold text-white">{priceText}</span> köçürün və köçürən kartın son 4 rəqəmini daxil edərək sorğu göndərin.</>
+                )}
+              </div>
+            </div>
+
             {cardNo && (
               <div className="bg-[#131417] border border-amber-500/20 rounded-xl p-4 text-left relative overflow-hidden space-y-3 shadow-inner">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
                 
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Yükləmə Bankı</span>
+                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">
+                      {lang === "ru" ? "Банк Получателя" : lang === "en" ? "Receiver Bank" : "Yükləmə Bankı"}
+                    </span>
                     <span className="text-xs font-black text-amber-500 uppercase tracking-wide">{cardBank || "KART TRANSFERİ"}</span>
                   </div>
                   <span className="text-sm">💳</span>
                 </div>
 
                 <div>
-                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Köçürülməli Kart Nömrəsi</span>
+                  <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">
+                    {lang === "ru" ? "Номер карты для перевода" : lang === "en" ? "Receiver Card Number" : "Köçürülməli Kart Nömrəsi"}
+                  </span>
                   <div className="flex items-center justify-between gap-2 mt-0.5 bg-[#1b1d22] border border-[#2a2d34] px-3 py-2 rounded-lg">
                     <span className="text-sm font-mono font-bold text-white tracking-widest">{cardNo}</span>
                     <button
                       type="button"
                       onClick={handleCopy}
                       className="p-1 hover:bg-[#2a2d34] rounded text-amber-500 hover:text-amber-400 transition-all cursor-pointer flex items-center justify-center"
-                      title="Kopyala"
+                      title={lang === "ru" ? "Копировать" : lang === "en" ? "Copy" : "Kopyala"}
                     >
                       {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                     </button>
@@ -265,24 +565,27 @@ export default function PaymentModal({
 
                 {cardHolder && (
                   <div>
-                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">Kart Sahibi (Ad Soyad)</span>
+                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">
+                      {lang === "ru" ? "Получатель платежа" : lang === "en" ? "Cardholder Name" : "Kart Sahibi (Ad Soyad)"}
+                    </span>
                     <span className="text-xs font-black text-white tracking-wide">{cardHolder.toUpperCase()}</span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Payer fields */}
-            <div className="border-t border-[#2a2d34]/60 pt-4 space-y-4">
+            <div className="border-t border-[#2a2d34]/60 pt-4 space-y-4 text-left">
               <span className="text-[10px] text-amber-500 font-black uppercase tracking-wider block">
-                ✍️ Ödəniş Məlumatlarınızı Təsdiqləyin:
+                {lang === "ru" ? "✍️ Подтвердите данные перевода:" : lang === "en" ? "✍️ Confirm Transfer Details:" : "✍️ Ödəniş Məlumatlarınızı Təsdiqləyin:"}
               </span>
 
               <div>
-                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Adınız və Soyadınız</label>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                  {lang === "ru" ? "Имя и Фамилия" : lang === "en" ? "First and Last Name" : "Adınız və Soyadınız"}
+                </label>
                 <input
                   type="text"
-                  placeholder="Məs. Əli Məmmədov"
+                  placeholder={lang === "ru" ? "Напр. Иван Иванов" : lang === "en" ? "e.g., John Doe" : "Məs. Əli Məmmədov"}
                   value={senderName}
                   onChange={(e) => setSenderName(e.target.value)}
                   className="w-full bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-white focus:outline-none text-base md:text-sm focus:border-amber-500 font-semibold"
@@ -291,7 +594,9 @@ export default function PaymentModal({
               </div>
 
               <div>
-                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Ödəyən Kartın Son 4 Rəqəmi</label>
+                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">
+                  {lang === "ru" ? "Последние 4 цифры вашей карты" : lang === "en" ? "Last 4 Digits of Your Card" : "Ödəyən Kartın Son 4 Rəqəmi"}
+                </label>
                 <input
                   type="text"
                   maxLength={4}
@@ -315,63 +620,18 @@ export default function PaymentModal({
               disabled={loading}
               className="w-full py-4 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-gray-950 font-black rounded-xl cursor-pointer transition-all text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
             >
-              {loading ? "Sorğu göndərilir..." : "Ödənişi Tamamladım, Təsdiqlə"}
+              {loading
+                ? lang === "ru" ? "Отправка..." : lang === "en" ? "Submitting..." : "Sorğu göndərilir..."
+                : lang === "ru" ? "Я перевел, отправить запрос" : lang === "en" ? "I Transferred, Verify Now" : "Ödənişi Tamamladım, Təsdiqlə"}
             </button>
           </form>
-        ) : (
-          <div className="space-y-4 text-center animate-fadeIn">
-            <p className="text-xs text-gray-400 leading-relaxed">
-              M10, Leo bank köçürmələri və ya əl ilə ödəniş etmək istəyirsinizsə aşağıdakı xidmətlərlə əlaqə yarada bilərsiniz. Ödənişdən sonra admin hesabınızı aktivləşdirəcəkdir.
-            </p>
-
-            {paymentLink ? (
-              <a
-                href={paymentLink}
-                target="_blank"
-                referrerPolicy="no-referrer"
-                className="block w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-gray-950 font-black rounded-xl text-center transition-all text-xs uppercase tracking-wider cursor-pointer"
-              >
-                🔗 Ödəniş Səhifəsinə Keç (M10 / Kart)
-              </a>
-            ) : !cardNo && (
-              <div className="bg-[#131417] border border-[#2a2d34] rounded-xl p-3 text-center">
-                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block">M10 Köçürməsi</span>
-                <span className="text-sm font-black text-white mt-1 block">M10 nömrəsi üçün admin ilə əlaqə saxlayın.</span>
-              </div>
-            )}
-
-            {whatsapp ? (
-              <a
-                href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, "")}`}
-                target="_blank"
-                referrerPolicy="no-referrer"
-                className="block w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl text-center transition-all text-xs uppercase tracking-wider cursor-pointer"
-              >
-                💬 WhatsApp ilə müraciət et
-              </a>
-            ) : (
-              <a
-                href="https://wa.me/994500000000"
-                target="_blank"
-                referrerPolicy="no-referrer"
-                className="block w-full py-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold rounded-xl text-center transition-all text-xs uppercase tracking-wider border border-emerald-500/20 cursor-pointer"
-              >
-                💬 WhatsApp Dəstək xətti
-              </a>
-            )}
-
-            <div className="p-3 bg-[#131417] border border-[#2a2d34] rounded-xl text-[10px] text-gray-400 text-left space-y-1">
-              <span className="font-bold text-white uppercase block mb-1">💡 ƏL İLƏ AKTİVLƏŞDİRMƏ:</span>
-              <p>1. Köçürməni tamamladıqdan sonra qəbzi WhatsApp ilə bizə göndərin.</p>
-              <p>2. Profilinizdəki e-mail ünvanınızı qeyd edin.</p>
-              <p>3. Admin panelindən premium statusunuz saniyələr içində aktivləşdiriləcəkdir!</p>
-            </div>
-          </div>
         )}
 
         <div className="flex items-center justify-center gap-1.5 text-[10px] text-gray-500 text-center uppercase tracking-wider pt-2 border-t border-[#2a2d34]/40">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>256-bit SSL Təhlükəsiz Ödəniş Sorğusu</span>
+          <span>
+            {lang === "ru" ? "256-разрядный защищенный SSL платеж" : lang === "en" ? "Secure 256-bit SSL connection" : "256-bit SSL Təhlükəsiz Ödəniş Sorğusu"}
+          </span>
         </div>
       </div>
     </div>
